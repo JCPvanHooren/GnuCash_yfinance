@@ -1,10 +1,35 @@
+"""Manage Pandas DataFrames
+
+.. _Google Python Style Guide:
+   http://google.github.io/styleguide/pyguide.html
+
+"""
+
 import yfinance
 from datetime import timedelta
+from datetime import date
 import pandas
 import uuid
 
 class DF:
-    def __init__(self, commodity, currency, start_date, end_date, period):    
+    """Manage Pandas Dataframes"""
+    def __init__(self, commodity, currency: str, start_date: date, end_date: date, period: str):
+        """Initialize DF Class.
+        
+        1. Set commodity
+        2. Set properties
+        3. Get DataFrame from Yahoo!Finance for relevant commodity
+        4. Create 'Full' DataFrame for GnuCash, including both SQL-relevant and CSV-relevant columns and values.
+        
+        Args:
+            commodity: GnuCash commodity
+            currency: GnuCash book default/base currency
+            start_date: If not using period - Download start date string (YYYY-MM-DD)
+            end_date: If not using period - Download end date string (YYYY-MM-DD). Defaults to `today`.
+            period: Data period to download (either use period parameter or use start and end). Defaults to 'auto', which will determine start date based on last available price date.
+        
+        """
+        
         self._commodity = commodity
         self._currency = currency
         self._start_date = start_date
@@ -16,41 +41,55 @@ class DF:
     
     @property
     def commodity(self):
+        """GnuCash commodity"""
         return self._commodity
     
     @property
-    def currency(self):
+    def currency(self) -> str:
+        """GnuCash book default/base currency"""
         return self._currency
     
     @property
-    def start_date(self):
+    def start_date(self) -> date:
+        """If not using period - Download start date string (YYYY-MM-DD)"""
         return self._start_date
     
     @property
-    def end_date(self):
+    def end_date(self) -> date:
+        """If not using period - Download end date string (YYYY-MM-DD). Defaults to `today`."""
         return self._end_date
     
     @property
-    def period(self):
+    def period(self) -> str:
+        """Data period to download (either use period parameter or use start and end).
+        
+        | Defaults to 'auto', which will determine start date based on last available price date.
+        | Valid choices = 'auto', '1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'.
+        """
         return self._period
     
     @property
-    def yf_df(self):
+    def yf_df(self) -> pandas.DataFrame:
+        """Pandas DataFrame with Commodity Prices from Yahoo!Finance"""
         return self._yf_df
     
     @property
-    def full_df(self):
+    def full_df(self) -> pandas.DataFrame:
+        """Pandas DataFrame with Full dataset for GnuCash, including both SQL-relevant and CSV-relevant columns and values."""
         return self._full_df
     
     @property
-    def stdout_df(self):
+    def stdout_df(self) -> pandas.DataFrame:
+        """Pandas DataFrame with selected data to print to STDOUT"""
         return self.full_df[['Curr', 'Close']]
     
     @property
-    def sql_df(self):
+    def sql_df(self) -> pandas.DataFrame:
+        """Pandas DataFrame with selected data for SQL Load to GnuCash `prices` table @ MariaDB"""
         return self.full_df[['guid', 'commodity_guid', 'currency_guid', 'source', 'type', 'value_num', 'value_denom']]
     
-    def _get_yf(self):       
+    def _get_yf(self) -> None:
+        """Get DataFrame from Yahoo!Finance for relevant commodity"""
         if self.commodity.namespace == 'CURRENCY':
             yf_symbol = self.commodity.mnemonic + self.currency + '=X'
         else:
@@ -65,7 +104,8 @@ class DF:
             else:
                 self._yf_df = yfinance.Ticker(yf_symbol).history(self.period)
     
-    def _set_full(self):
+    def _set_full(self) -> None:
+        """Create Full DataFrame by processing and enriching Yahoo!Finance DataFrame"""
         if (not self.yf_df.empty and self.commodity.mnemonic != self.currency):
             self._full_df = self.yf_df[['Close']].copy()
             self._full_df.index = self.full_df.index.tz_localize(None)

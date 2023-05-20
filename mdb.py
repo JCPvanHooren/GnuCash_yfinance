@@ -1,10 +1,34 @@
+"""If run as main module (not imported), execute:
+    
+    1. Parse cli arguments
+    2. Create MariaDB SqlAlchemy Engine
+    3. Get GnuCash Commodities from MariaDB
+    4. Print Commodities to STDOUT
+
+.. _Google Python Style Guide:
+   http://google.github.io/styleguide/pyguide.html
+
+"""
+
 import helpers
 import getpass
-from sqlalchemy import URL, create_engine, MetaData, Table, select
+from sqlalchemy import URL, create_engine, MetaData, Table, select, Engine
 from sqlalchemy.sql import func
 
 class MDB:
-    def __init__(self, host, port, database):
+    """Manage GnuCash @ MariaDB connection, properties and selected data"""
+    def __init__(self, host: str, port: int, database: str) -> None:
+        """Initialize MariaDB connection, using host, port and database arguments
+        
+        Create MariaDB SqlAlchemy Engine and get commodities.
+        
+        Args:
+            host: MariaDB host name or IP-address
+            port: MariaDB port
+            database: GnuCash database name
+        
+        """
+        
         self._host = host
         self._port = port
         self._database = database
@@ -14,36 +38,44 @@ class MDB:
         self._get_commodities()
     
     @property
-    def host(self):
+    def host(self) -> str:
+        """MariaDB host name or IP-address"""
         return self._host
     
     @property
-    def port(self):
+    def port(self) -> int:
+        """MariaDB port"""
         return self._port
     
     @property
-    def database(self):
+    def database(self) -> str:
+        """GnuCash database name"""
         return self._database
     
     @property
-    def engine(self):
+    def engine(self) -> Engine:
+        """SqlAlchemy MariaDB Engine"""
         return self._engine
     
     @property
     def commodities(self):
+        """GnuCash Commodities from MariaDB"""
         return self._commodities
     
-    def _get_username(self):
+    def _get_username(self) -> str:
+        """Get MariaDB username from user. Defaults to current system user."""
         default_user = getpass.getuser().title()
         print(f"\nEnter a username and password to connect to: MariaDB://{self.host}:{self.port}/{self.database}")
         return input(f"Provide username or hit 'Enter' to use default ({default_user}): ") or default_user
     
-    def _get_password(self):
+    def _get_password(self) -> str:
+        """Get MariaDB password from user."""
         pwd = getpass.getpass()
         while not pwd: pwd = getpass.getpass('Password cannot be empty. Please enter a Password: ')
         return pwd
     
-    def _create_engine(self):
+    def _create_engine(self) -> None:
+        """Create SqlAlchemy MariaDB Engine"""
         _mdb_usr = self._get_username()
         _mdb_pwd = self._get_password()
         url_object = URL.create('mariadb+pymysql',
@@ -54,7 +86,8 @@ class MDB:
                                             database = self.database)
         self._engine = create_engine(url_object)
     
-    def _get_commodities(self):
+    def _get_commodities(self) -> None:
+        """Get commodities from GnuCash @ MariaDB"""
         # Read MetaData from GnuCash tables through 'table reflection'
         # https://docs.sqlalchemy.org/en/20/tutorial/metadata.html#table-reflection
         metadata_obj = MetaData()
