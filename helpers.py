@@ -33,9 +33,9 @@ class Args:
         1. Parse cli Arguments, including default assertion as per ArgumentParser.
         2. Collect default Arguments from `defaults.ini`
         3. Set final Arguments in order of precedence:
-            <1> Arguments provided on cli
-            <2> If not defined on cli: default provided as per ArgumentParser
-            <3> If not defined in ArgumentParser: from `defaults.ini`
+            | <1> Arguments provided on cli
+            | <2> If not defined on cli: default provided as per ArgumentParser
+            | <3> If not defined in ArgumentParser: from `defaults.ini`
         
         Note:
             To enable defaults.ini, ArgumentParser defaults should be removed. Otherwise ArgumentParser will always provide a value (either from cli or defined default), which will take precedence over `defaults.ini` values
