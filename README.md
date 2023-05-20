@@ -32,7 +32,7 @@ _**Make sure to edit the standard defaults.ini!**_ It contains an invalid MariaD
 |-|-|-|-|
 ||--host|MariaDB host name or IP-address |192.168.1.x|
 ||--port|MariaDB port|3306|
-|-db|--database|GnuCash database name|gnucash|
+|-d|--database|GnuCash database name|gnucash|
 
 ### GnuCash options:
 |Short|Long|Description|Default|
