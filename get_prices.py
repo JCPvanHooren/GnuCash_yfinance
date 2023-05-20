@@ -52,8 +52,8 @@ def main() -> None:
     """The main module to download commodity prices from Yahoo!Finance and store them in csv @ <output-path> and/or GnuCash @ MariaDB"""
     
     args = helpers.Args()
-    to_mdb = get_bool(f"Load prices to: MariaDB://{args.host}:{args.port}/{args.database}? ['Enter' = True] ", False)
-    to_csv = get_bool(f"Save prices to: {args.output_path}? ['Enter' = False] ", True)
+    to_mdb = get_bool(f"Load prices to: MariaDB://{args.host}:{args.port}/{args.database}? ['Enter' = No] ", False)
+    to_csv = get_bool(f"Save prices to: {args.output_path}? ['Enter' = Yes] ", True)
     
     # If user chose to write prices to csv, delete pre-existing csv-file, if present 
     if to_csv:
@@ -95,7 +95,7 @@ def delete_csv(output_path: str) -> None:
     """
     
     if os.path.exists(output_path):
-        delete_choice = get_bool(f"{output_path} already exists. Do you want to overwrite? ['Enter' = True] ", True)
+        delete_choice = get_bool(f"{output_path} already exists. Do you want to overwrite? ['Enter' = Yes] ", True)
         if delete_choice:
             print(f"Deleting {output_path}...")
             os.remove(output_path)
@@ -124,8 +124,10 @@ def get_bool(prompt: str, default: str | bool) -> bool:
         valid_responses = {"y":True, "n":False}
         try:
             if default == 'force':
+                # User is forced to provide a `valid_response`
                 return valid_responses[input(prompt).lower()]
             else:
+                # Add `default` to `valid_responses`, so user can hit 'Enter'/provide empty response to return `default`
                 valid_responses[""] = default 
                 return valid_responses[input(prompt).lower()]
         except KeyError:
