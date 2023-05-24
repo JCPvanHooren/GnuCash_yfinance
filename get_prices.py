@@ -10,7 +10,7 @@ Note:
 
 options:
     -h, --help  Show this help message and exit.
-    --silent   Run script in silent mode. Do not interact with user to enable full automation. 
+    --silent   Run script in silent mode. Do not interact with user to enable full automation. (default: False)
 
 MariaDB server options:
     --host HOST

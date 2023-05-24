@@ -26,6 +26,13 @@ The `config.ini` file can be used to customize default options, preventing the n
 
 _**Make sure to edit the standard config.ini!**_ It contains an invalid MariaDB host IP-address and the script will not work with this default (i.e. without explicitly providing a host through the command line)
 
+### General options:
+
+|Short|Long|Description|Default|
+|-|-|-|-|
+|-h|--help|Show help message and exit.||
+||--silent|Run script in silent mode. Do not interact with user to enable full automation|False|
+
 ### MariaDB server options:
 
 |Short|Long|Description|Default|
@@ -42,14 +49,15 @@ _**Make sure to edit the standard config.ini!**_ It contains an invalid MariaDB 
 ### Data options:
 |Short|Long|Description|Default|Options|
 |-|-|-|-|-|
-|-o|--output-path|Output path to store prices in csv|./consolidated_prices.csv||
+|-o|--output-path|Output path to store prices in csv|consolidated_prices.csv||
 |-p|--period|Data period to download (either use period parameter or use start and end). 'auto' will determine start date based on last available price date|auto|auto, 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max|
-|-s|--start|If not using period: Download start date string (YYYY-MM-DD)||
-|-e|--end|If not using period: Download end date string (YYYY-MM-DD)|_'today'_
+|-s|--start|If not using period: Download start date string||YYYY-MM-DD|
+|-e|--end|If not using period: Download end date string|_'today'_|YYYY-MM-DD|
 
 ## Modules
 |Filename|Description|
 |-|-|
+|config.ini|Configuration file to define values by adding the 'long' key in `config.ini`.
 |get_prices.py|Main module|
 |helpers.py|Helper functions used across multiple modules|
 |mdb.py|'MDB' Class<br/>to work with GnuCash @ MariaDB,<br/>using [SQLAlchemy](https://www.sqlalchemy.org/)|
