@@ -3,13 +3,13 @@
 1. Retrieves commodities from GnuCash.
 2. Downloads prices for each commodity from Yahoo!Finance (using the yfinance Python module.
 3. Save prices to a pre-formatted csv for easy manual import
-4. and/or Load prices to GnuCash `prices` table
+4. and/or Load prices to GnuCash `prices` table.
 
 Note:
-    All options can have a default value by adding the 'long' key in `config.ini`
+    All options can have a default value by adding the 'long' key in `config.ini`.
 
 options:
-    -h, --help  show this help message and exit
+    -h, --help  Show this help message and exit.
     --silent   Run script in silent mode. Do not interact with user to enable full automation. 
 
 MariaDB server options:
@@ -19,6 +19,10 @@ MariaDB server options:
         MariaDB port (default: 3306)
     -d DATABASE, --database DATABASE
         GnuCash database name (default: gnucash)
+    -u USERNAME, --user USERNAME
+        GnuCash MariaDB username (default: current system username)
+    --pwd
+        GnuCash MariaDB password. Must be provided in `config.ini` or cli when using `--silent`.
 
 GnuCash options:
     -c CURRENCY, --currency CURRENCY
@@ -62,16 +66,25 @@ from df import DF
 def main() -> None:
     """The main module to download commodity prices from Yahoo!Finance and store them in csv @ <output-path> and/or GnuCash @ MariaDB"""
     
+    global args
     args = helpers.Args()
-    to_mdb = get_bool(f"Load prices to: MariaDB://{args.host}:{args.port}/{args.database}? ['Enter' = No] ", False)
-    to_csv = get_bool(f"Save prices to: {args.output_path}? ['Enter' = Yes] ", True)
     
-    # If user chose to write prices to csv, delete pre-existing csv-file, if present 
-    if to_csv:
-        delete_csv(args.output_path)
+    if not args.silent:
+        args.to_mdb = get_bool(f"Load prices to: MariaDB://{args.host}:{args.port}/{args.database}? ['Enter' = {args.to_mdb}] ", args.to_mdb if isinstance(args.to_mdb, bool) else 'force')
+        
+        args.to_csv = get_bool(f"Save prices to: {args.output_path}? ['Enter' = {args.to_csv}] ", args.to_csv if isinstance(args.to_csv, bool) else 'force')
+        
+        # If user chose to write prices to csv, delete pre-existing csv-file, if present 
+        if args.to_csv:
+            delete_csv()
     
     # GnuCash @ MariaDB
-    mdb = MDB(args.host, args.port, args.database)
+    if args.silent and args.pwd is None:
+        print("Silent mode activated, but no password provided.")
+        print("When activating 'silent' mode, always provide a GnuCash MariaDB password through cli or 'config.ini'")
+        sys.exit("Exiting script...")
+    else:
+        mdb = MDB(args.host, args.port, args.database, args.user, args.pwd)
 
     # Process each commodity
     for commodity in mdb.commodities:
@@ -86,34 +99,29 @@ def main() -> None:
             # Print dataframe
             print(df.stdout_df)
             
-            if to_csv:
+            if args.to_csv:
                 # Write dataframe to CSV
                 print(f"\nWriting to {args.output_path}... ", end = '')
                 df.full_df.to_csv(args.output_path, mode = 'a', header = not os.path.exists(args.output_path))
                 print("ADDED")
             
-            if to_mdb:
+            if args.to_mdb:
                 # Load to GnuCash @ MariaDB through SQL
                 print("\nLoading to GnuCash @ MariaDB through SQL...")
                 df.sql_df.to_sql(name = 'prices', con = mdb.engine, if_exists = 'append', index = True)
 
-def delete_csv(output_path: str) -> None:
-    """Delete pre-existing file @ <output_path>, if present.
-    
-    Args:
-        output_path: Path where csv-file is to be written.
-    
-    """
-    
-    if os.path.exists(output_path):
-        overwrite_csv = get_bool(f"{output_path} already exists. Do you want to overwrite? ['Enter' = Yes] ", True)
-        if overwrite_csv:
-            print(f"Deleting {output_path}...")
-            os.remove(output_path)
+def delete_csv() -> None:
+    """Delete pre-existing file @ <output_path>, if present."""
+        
+    if os.path.exists(args.output_path):
+        args.overwrite_csv = get_bool(f"{args.output_path} already exists. Do you want to overwrite? ['Enter' = Yes] ", args.overwrite_csv if isinstance(args.overwrite_csv, bool) else 'force')
+        if args.overwrite_csv:
+            print(f"Deleting {args.output_path}...")
+            os.remove(args.output_path)
         else:
             sys.exit("Exiting script...")
     else:
-        print(f"{output_path} does not exist / will be created.")
+        print(f"{args.output_path} does not exist / will be created.")
 
 def get_bool(prompt: str, default: str | bool) -> bool:
     """Helper function to prompt user for confirmation of an action.
@@ -133,6 +141,7 @@ def get_bool(prompt: str, default: str | bool) -> bool:
         raise ValueError("Prompt default must be one of %r." % VALID_DEFAULTS)
     
     while True:
+        # TODO use str2bool()
         valid_responses = {"y":True, "yes":True, "true":True, "n":False, "no":False, "false":False}
         try:
             if default == 'force':

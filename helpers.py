@@ -9,6 +9,7 @@ If run as main module (not imported): print Arguments
 
 import argparse
 import configparser
+import getpass
 from typing import Optional
 from collections import ChainMap
 from datetime import date
@@ -47,18 +48,15 @@ class Args:
         self._cli_args = parse_args()
         # TODO: Enable alternate `.ini` through cli
         self._config_ini = parse_config('config.ini')
-        
-        # Combine parsed Command Line Arguments, with `config.ini` into a ChainMap
-        # The ChainMap will use cli_args, if provided. If no parsed argument is provided, it will use values from `config.ini`
-        self._defaults_cm = ChainMap(self._cli_args, self._config_ini)
-        
-        # Initialize properties from defaults ChainMap,
-        # using args_defaults dict to identify potential hardcoded defaults
-        args_defaults = {
+                
+        # Set config_defaults dict to identify potential hardcoded defaults
+        self._config_defaults = {
             'silent': False,
             'host': None,
             'port': 3306,
             'database': 'gnucash',
+            'user': None,
+            'pwd': None,
             'currency': 'EUR',
             'to_mdb': False,
             'to_csv': False,
@@ -68,9 +66,19 @@ class Args:
             'start_date': None,
             'end_date': date.today()
         }
+
+        # Combine parsed Command Line Arguments, with `config.ini` into a ChainMap
+        # The ChainMap will use cli_args, if provided.
+        # If no parsed argument is provided, it will use values from `config.ini`
+        # If no cli args and no value from `config.ini`, it will use hardcoded defaults
+        self._defaults_cm = ChainMap(self._cli_args, self._config_ini, self._config_defaults)
         
-        for key, default_value in args_defaults.items():
+        # Initialize properties from defaults ChainMap,        
+        for key, default_value in self._defaults_cm.items():
             exec(f"self._{key} = self._defaults_cm['{key}'] if '{key}' in self._defaults_cm else '{default_value}'")
+        
+        # If `--silent` mode is active and no username provided, use current system username
+        if self.silent and self.user is None: self._user = getpass.getuser().title()
         
     @property
     def silent(self) -> bool:
@@ -91,6 +99,19 @@ class Args:
     def database(self) -> str:
         """GnuCash database name"""
         return self._database
+    
+    @property
+    def user(self) -> str:
+        """GnuCash MariaDB username
+        
+        Default: current system username
+        """
+        return self._user
+    
+    @property
+    def pwd(self) -> str:
+        """GnuCash MariaDB password"""
+        return self._pwd
     
     @property
     def currency(self) -> str:
@@ -187,6 +208,9 @@ def parse_args() -> dict:
     mdb_server_group.add_argument('--host', help="MariaDB host name or IP-address")
     mdb_server_group.add_argument('--port', help="MariaDB port")
     mdb_server_group.add_argument('-d', '--database', help="GnuCash database name")
+    mdb_server_group.add_argument('-u', '--user', help="GnuCash MariaDB username")
+    mdb_server_group.add_argument('--pwd', help="GnuCash MariaDB password. Must be provided in `config.ini` or cli when using `--silent`.")
+    
     
     # GnuCash Options Group
     gnucash_group = parser.add_argument_group('GnuCash options')
@@ -232,8 +256,8 @@ def parse_config(ini_file: str) -> dict:
     
     # Convert boolean values from str to bool
     for key in config_ini:
-        if config_ini[key] == 'True' or config_ini[key] == 'False':
-            config_ini[key] = config_ini[key] == 'True'
+        if config_ini[key].lower() == 'true' or config_ini[key].lower() == 'false':
+            config_ini[key] = config_ini[key].lower() == 'true'
     
     return config_ini
 

@@ -17,7 +17,7 @@ from sqlalchemy.sql import func
 
 class MDB:
     """Manage GnuCash @ MariaDB connection, properties and selected data"""
-    def __init__(self, host: str, port: int, database: str) -> None:
+    def __init__(self, host: str, port: int, database: str, user: str|None, pwd: str|None) -> None:
         """Initialize MariaDB connection, using host, port and database arguments
         
         Create MariaDB SqlAlchemy Engine and get commodities.
@@ -34,7 +34,7 @@ class MDB:
         self._database = database
         
         # Create MariaDB SQLAlchemy Engine
-        self._create_engine()
+        self._create_engine(user, pwd)
         self._get_commodities()
     
     @property
@@ -74,10 +74,10 @@ class MDB:
         while not pwd: pwd = getpass.getpass('Password cannot be empty. Please enter a Password: ')
         return pwd
     
-    def _create_engine(self) -> None:
+    def _create_engine(self, user, pwd) -> None:
         """Create SqlAlchemy MariaDB Engine"""
-        _mdb_usr = self._get_username()
-        _mdb_pwd = self._get_password()
+        _mdb_usr = self._get_username() if user is None else user
+        _mdb_pwd = self._get_password() if pwd is None else pwd
         url_object = URL.create('mariadb+pymysql',
                                             username = _mdb_usr,
                                             password = _mdb_pwd,
