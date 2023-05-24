@@ -5,31 +5,43 @@
 3. Save prices to a pre-formatted csv for easy manual import
 4. and/or Load prices to GnuCash `prices` table
 
+Note:
+    All options can have a default value by adding the 'long' key in `defaults.ini`
+
 options:
-  -h, --help            show this help message and exit
+    -h, --help  show this help message and exit
+    --silent   Run script in silent mode. Do not interact with user to enable full automation. 
 
 MariaDB server options:
-  --host HOST
-        MariaDB host name or IP-address (default: None)
-  --port PORT
-        MariaDB port (default: None)
+    --host HOST
+        MariaDB host name or IP-address
+    --port PORT
+        MariaDB port (default: 3306)
 
-  -d DATABASE, --database DATABASE
-        GnuCash database name (default: None)
+    -d DATABASE, --database DATABASE
+        GnuCash database name (default: gnucash)
 
 GnuCash options:
-  -c CURRENCY, --currency CURRENCY
-                        GnuCash book default/base currency (default: None)
+    -c CURRENCY, --currency CURRENCY
+        GnuCash book default/base currency (default: EUR)
 
 Data options:
-  -o OUTPUT_PATH, --output-path OUTPUT_PATH
-                        Output path to store prices in csv (default: None)
-  -p PERIOD, --period PERIOD
-                        Data period to download (either use period parameter or use start and end). 'auto' will determine start date based on last available price date (default: auto)
-  -s START_DATE, --start-date START_DATE
-                        If not using period - Download start date string (YYYY-MM-DD) (default: None)
-  -e END_DATE, --end-date
-                        END_DATE If not using period - Download end date string (YYYY-MM-DD) (default: 'today')
+    --to-mdb
+        Load prices to MariaDB (default: False)
+    --to-csv
+        Save prices to csv (default: False)
+    -o OUTPUT_PATH, --output-path OUTPUT_PATH
+        Output path to store prices in csv (default: 'consolidated_prices.csv')
+    --overwrite_csv
+        Overwrite csv if it already exists (default: False)
+
+Yahoo!Finance options:
+    -p PERIOD, --period PERIOD
+        Data period to download (either use period parameter or use start and end). 'auto' will determine start date based on last available price date (default: auto)
+    -s START_DATE, --start-date START_DATE
+        If not using period: Download start date string (YYYY-MM-DD) (default: None)
+    -e END_DATE, --end-date END_DATE
+        If not using period: Download end date string (YYYY-MM-DD) (default: `today`)
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html
@@ -95,8 +107,8 @@ def delete_csv(output_path: str) -> None:
     """
     
     if os.path.exists(output_path):
-        delete_choice = get_bool(f"{output_path} already exists. Do you want to overwrite? ['Enter' = Yes] ", True)
-        if delete_choice:
+        overwrite_csv = get_bool(f"{output_path} already exists. Do you want to overwrite? ['Enter' = Yes] ", True)
+        if overwrite_csv:
             print(f"Deleting {output_path}...")
             os.remove(output_path)
         else:
@@ -112,7 +124,8 @@ def get_bool(prompt: str, default: str | bool) -> bool:
         default: default return value, if no input is given by the user (i.e. user hits 'Enter' upon prompt).
     
     Returns:
-        True if action is to be executed by the script. False if action should not be executed by the script.
+        True if action is to be executed by the script.
+        False if action should not be executed by the script.
     
     """
     
@@ -121,7 +134,7 @@ def get_bool(prompt: str, default: str | bool) -> bool:
         raise ValueError("Prompt default must be one of %r." % VALID_DEFAULTS)
     
     while True:
-        valid_responses = {"y":True, "n":False}
+        valid_responses = {"y":True, "yes":True, "true":True, "n":False, "no":False, "false":False}
         try:
             if default == 'force':
                 # User is forced to provide a `valid_response`

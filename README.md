@@ -44,8 +44,8 @@ _**Make sure to edit the standard defaults.ini!**_ It contains an invalid MariaD
 |-|-|-|-|-|
 |-o|--output-path|Output path to store prices in csv|./consolidated_prices.csv||
 |-p|--period|Data period to download (either use period parameter or use start and end). 'auto' will determine start date based on last available price date|auto|auto, 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max|
-|-s|--start|If not using period - Download start date string (YYYY-MM-DD)||
-|-e|--end|If not using period - Download end date string (YYYY-MM-DD)|_'today'_
+|-s|--start|If not using period: Download start date string (YYYY-MM-DD)||
+|-e|--end|If not using period: Download end date string (YYYY-MM-DD)|_'today'_
 
 ## Modules
 |Filename|Description|

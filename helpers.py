@@ -1,5 +1,7 @@
 """Helper Classes & Functions used across multiple modules
 
+If run as main module (not imported): print Arguments
+
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html
 
@@ -40,6 +42,9 @@ class Args:
         Note:
             To enable defaults.ini, ArgumentParser defaults should be removed. Otherwise ArgumentParser will always provide a value (either from cli or defined default), which will take precedence over `defaults.ini` values
         
+        Note:
+            All options can have a default set by adding the 'long' key in `defaults.ini`
+        
         """
         
         parsed_args = _parse_args()
@@ -57,26 +62,34 @@ class Args:
         for section in config.sections():
             defaults_ini.update(config._sections[section])
         
+        # Convert boolean values from str to bool
+        for key in defaults_ini:
+            if defaults_ini[key] == 'True' or defaults_ini[key] == 'False':
+                defaults_ini[key] = defaults_ini[key] == 'True'
+        
         # Combine parsed Command Line Arguments, with 'defaults.ini' into a ChainMap
         # The ChainMap will use cli_args, if provided. If no parsed argument is provided, it will use values from defaults.ini
         defaults_cm = ChainMap(cli_args, defaults_ini)
         
-        # Initialize properties from defaults ChainMap
+        # Initialize properties from defaults ChainMap,
+        # using args_defaults dict to identify potential hardcoded defaults
+        args_defaults = {
+            'host': None,
+            'port': 3306,
+            'database': 'gnucash',
+            'currency': 'EUR',
+            'to_mdb': False,
+            'to_csv': False,
+            'output_path': 'consolidated_prices.csv',
+            'overwrite_csv': False,
+            'period': 'auto',
+            'start_date': None,
+            'end_date': date.today()
+        }
         
-        # MariaDB server options
-        self._host = defaults_cm['host']
-        self._port = defaults_cm['port']
-        self._database = defaults_cm['database']
+        for key, default_value in args_defaults.items():
+            exec(f"self._{key} = defaults_cm['{key}'] if '{key}' in defaults_cm else '{default_value}'")
         
-        # GnuCash options
-        self._currency = defaults_cm['currency']
-        
-        # Data options
-        self._output_path = defaults_cm['output_path']
-        self._period = defaults_cm['period']
-        self._start_date = defaults_cm['start_date'] if 'start_date' in defaults_cm else None
-        self._end_date = defaults_cm['end_date']
-    
     @property
     def host(self) -> str:
         """MariaDB host name or IP-address"""
@@ -98,9 +111,42 @@ class Args:
         return self._currency
     
     @property
+    def to_mdb(self) -> bool:
+        """User choice to load prices to GnuCash @ MariaDB (or not). Defaults to False."""
+        return self._to_mdb
+    
+    @to_mdb.setter
+    def to_mdb(self, val: bool) -> None:
+        self._to_mdb = val
+    
+    @property
+    def to_csv(self) -> bool:
+        """User choice to save prices to csv (or not). Defaults to False"""
+        return self._to_csv
+    
+    @to_csv.setter
+    def to_csv(self, val: bool) -> None:
+        self._to_csv = val
+    
+    @property
     def output_path(self) -> str:
-        """Output path to store prices in csv"""
+        """Output path to store prices in csv (or not). Defaults to False."""
         return self._output_path
+    
+    @property
+    def overwrite_csv(self) -> bool:
+        """User choice to overwrite csv or not
+        
+        Can only be set once, to avoid overwriting `True` when to_csv is provided through `defaults.ini`. Will block attempt to re-set if already pre-set.
+        """
+        return self._overwrite_csv
+    
+    @overwrite_csv.setter
+    def overwrite_csv(self, val: bool) -> None:
+        if self._overwrite_csv is None:
+            self._overwrite_csv = val
+        else:
+            print(f"overwrite_csv already set to {self.overwrite_csv}. Ignoring request to set")
     
     @property
     def period(self) -> str:
@@ -144,20 +190,54 @@ def _parse_args() -> argparse.ArgumentParser:
                 "\n    and/or"
                 "\n3b. Load prices to GnuCash price table directly")
     parser = argparse.ArgumentParser(description=prog_descr, formatter_class=CustomFormatter)
+    parser.add_argument('--silent', action='store_true', help="Run script in silent mode. Do not interact with user to enable full automation.")
     
+    # MariaDB servers Option Group
     mdb_server_group = parser.add_argument_group('MariaDB server options')
     mdb_server_group.add_argument('--host', help="MariaDB host name or IP-address")
     mdb_server_group.add_argument('--port', help="MariaDB port")
     mdb_server_group.add_argument('-d', '--database', help="GnuCash database name")
     
+    # GnuCash Options Group
     gnucash_group = parser.add_argument_group('GnuCash options')
     gnucash_group.add_argument('-c', '--currency', help="GnuCash book default/base currency")
     
+    # Data Options Group
     data_group = parser.add_argument_group('Data options')
+    data_group.add_argument('--to-mdb', action='store_true', help="Load prices to MariaDB")
+    data_group.add_argument('--to-csv', action='store_true', help="Save prices to csv")
     data_group.add_argument('-o', '--output-path', help="Output path to store prices in csv")
-    data_group.add_argument('-p', '--period', default = 'auto',
+    data_group.add_argument('--overwrite-csv', action='store_true', help="Overwrite csv if it already exists")
+    
+    # Yahoo!Finance Options group
+    yf_group = parser.add_argument_group('Yahoo!Finance options')
+    yf_group.add_argument('-p', '--period',
                             choices = ['auto', '1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'],
                             help="Data period to download (either use period parameter or use start and end). 'auto' will determine start date based on last available price date")
-    data_group.add_argument('-s', '--start-date', help="If not using period - Download start date string (YYYY-MM-DD)")
-    data_group.add_argument('-e', '--end-date', default = date.today(), help="If not using period - Download end date string (YYYY-MM-DD)")
+    yf_group.add_argument('-s', '--start-date', help="If not using period: Download start date string (YYYY-MM-DD)")
+    yf_group.add_argument('-e', '--end-date', default = date.today(), help="If not using period: Download end date string (YYYY-MM-DD)")
     return parser.parse_args()
+
+def str2bool(string: str) -> bool | None:
+    """Convert a given string to a boolean. Returns `None` if string is unlisted as representing unambiguous True or False.
+    
+    Args:
+        string: String to be converted into a boolean
+    
+    Returns:
+        Boolean or None
+    
+    """
+    
+    if isinstance(string, str):
+        if string.lower() in ('true', 't', 'yes', 'y', 'on'):
+            return True
+        elif string.lower() in ('false', 'f', 'no', 'n', 'off'):
+            return False
+        else:
+            return None
+
+if __name__ == '__main__':
+    args = vars(Args())
+    for arg, val in args.items():
+        print(f"{arg}: {val}")
