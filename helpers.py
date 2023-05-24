@@ -27,53 +27,35 @@ def print_headerline(char: str, leading_newline: Optional[bool] = False) -> None
     print(char * 64)
 
 class Args:
-    """Store processed arguments from cli and defaults.ini"""
+    """Store processed arguments from cli and config.ini"""
     
     def __init__(self):
-        """Process arguments from cli and defaults.ini
+        """Process arguments from cli and config.ini
         
         1. Parse cli Arguments, including default assertion as per ArgumentParser.
-        2. Collect default Arguments from `defaults.ini`
+        2. Collect default Arguments from `config.ini`
         3. Set final Arguments in order of precedence:
             | <1> Arguments provided on cli
             | <2> If not defined on cli: default provided as per ArgumentParser
-            | <3> If not defined in ArgumentParser: from `defaults.ini`
+            | <3> If not defined in ArgumentParser: from `config.ini`
         
         Note:
-            To enable defaults.ini, ArgumentParser defaults should be removed. Otherwise ArgumentParser will always provide a value (either from cli or defined default), which will take precedence over `defaults.ini` values
-        
-        Note:
-            All options can have a default set by adding the 'long' key in `defaults.ini`
+            All options can have a default set by adding the 'long' key in `config.ini`
         
         """
         
-        parsed_args = _parse_args()
+        self._cli_args = parse_args()
+        # TODO: Enable alternate `.ini` through cli
+        self._config_ini = parse_config('config.ini')
         
-        
-        # Convert parsed arguments to a dictionary
-        cli_args = {k: v for k,v in vars(parsed_args).items() if v is not None}
-        
-        # Collect argument defaults from 'defaults.ini'
-        config = configparser.ConfigParser()
-        config.read('defaults.ini')
-        
-        # Add each Section's config entries to a single dictionary, excluding Section headers
-        defaults_ini = {}
-        for section in config.sections():
-            defaults_ini.update(config._sections[section])
-        
-        # Convert boolean values from str to bool
-        for key in defaults_ini:
-            if defaults_ini[key] == 'True' or defaults_ini[key] == 'False':
-                defaults_ini[key] = defaults_ini[key] == 'True'
-        
-        # Combine parsed Command Line Arguments, with 'defaults.ini' into a ChainMap
-        # The ChainMap will use cli_args, if provided. If no parsed argument is provided, it will use values from defaults.ini
-        defaults_cm = ChainMap(cli_args, defaults_ini)
+        # Combine parsed Command Line Arguments, with `config.ini` into a ChainMap
+        # The ChainMap will use cli_args, if provided. If no parsed argument is provided, it will use values from `config.ini`
+        self._defaults_cm = ChainMap(self._cli_args, self._config_ini)
         
         # Initialize properties from defaults ChainMap,
         # using args_defaults dict to identify potential hardcoded defaults
         args_defaults = {
+            'silent': False,
             'host': None,
             'port': 3306,
             'database': 'gnucash',
@@ -88,8 +70,13 @@ class Args:
         }
         
         for key, default_value in args_defaults.items():
-            exec(f"self._{key} = defaults_cm['{key}'] if '{key}' in defaults_cm else '{default_value}'")
+            exec(f"self._{key} = self._defaults_cm['{key}'] if '{key}' in self._defaults_cm else '{default_value}'")
         
+    @property
+    def silent(self) -> bool:
+        """Run script in silent mode (or not)"""
+        return self._silent
+    
     @property
     def host(self) -> str:
         """MariaDB host name or IP-address"""
@@ -137,7 +124,7 @@ class Args:
     def overwrite_csv(self) -> bool:
         """User choice to overwrite csv or not
         
-        Can only be set once, to avoid overwriting `True` when to_csv is provided through `defaults.ini`. Will block attempt to re-set if already pre-set.
+        Can only be set once, to avoid overwriting `True` when to_csv is provided through `config.ini`. Will block attempt to re-set if already pre-set.
         """
         return self._overwrite_csv
     
@@ -172,12 +159,15 @@ class Args:
         """
         return self._end_date
     
-def _parse_args() -> argparse.ArgumentParser:
+def parse_args() -> dict:
     """Parse Command Line Arguments.
     
     Returns:
-        Parsed arguments from Command Line.
+        Parsed arguments from Command Line as a dictionary.
     
+    Note:
+        To enable config.ini, ArgumentParser defaults should be removed OR set to `None` when using `action='store_true'`. Otherwise ArgumentParser will always provide a value (either from cli or defined default OR from default `False` i.c.o. `action='store_true'`), which will take precedence over `config.ini` values
+        
     """
     
     class CustomFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
@@ -190,9 +180,9 @@ def _parse_args() -> argparse.ArgumentParser:
                 "\n    and/or"
                 "\n3b. Load prices to GnuCash price table directly")
     parser = argparse.ArgumentParser(description=prog_descr, formatter_class=CustomFormatter)
-    parser.add_argument('--silent', action='store_true', help="Run script in silent mode. Do not interact with user to enable full automation.")
+    parser.add_argument('--silent', action='store_true', default=None, help="Run script in silent mode. Do not interact with user to enable full automation.")
     
-    # MariaDB servers Option Group
+    # MariaDB server Options Group
     mdb_server_group = parser.add_argument_group('MariaDB server options')
     mdb_server_group.add_argument('--host', help="MariaDB host name or IP-address")
     mdb_server_group.add_argument('--port', help="MariaDB port")
@@ -204,10 +194,10 @@ def _parse_args() -> argparse.ArgumentParser:
     
     # Data Options Group
     data_group = parser.add_argument_group('Data options')
-    data_group.add_argument('--to-mdb', action='store_true', help="Load prices to MariaDB")
-    data_group.add_argument('--to-csv', action='store_true', help="Save prices to csv")
+    data_group.add_argument('--to-mdb', action='store_true', default=None, help="Load prices to MariaDB")
+    data_group.add_argument('--to-csv', action='store_true', default=None, help="Save prices to csv")
     data_group.add_argument('-o', '--output-path', help="Output path to store prices in csv")
-    data_group.add_argument('--overwrite-csv', action='store_true', help="Overwrite csv if it already exists")
+    data_group.add_argument('--overwrite-csv', action='store_true', default=None, help="Overwrite csv if it already exists")
     
     # Yahoo!Finance Options group
     yf_group = parser.add_argument_group('Yahoo!Finance options')
@@ -216,7 +206,37 @@ def _parse_args() -> argparse.ArgumentParser:
                             help="Data period to download (either use period parameter or use start and end). 'auto' will determine start date based on last available price date")
     yf_group.add_argument('-s', '--start-date', help="If not using period: Download start date string (YYYY-MM-DD)")
     yf_group.add_argument('-e', '--end-date', default = date.today(), help="If not using period: Download end date string (YYYY-MM-DD)")
-    return parser.parse_args()
+    
+    # Return parsed arguments as a dictionary
+    return {k: v for k,v in vars(parser.parse_args()).items() if v is not None}
+        
+def parse_config(ini_file: str) -> dict:
+    """Parse Configuration Arguments.
+    
+    Args:
+        ini_file: name of the `'config'.ini` file.
+    
+    Returns:
+        Parsed configuration from `config.ini` as a dictionary.
+    
+    """
+    
+    # Collect argument defaults from 'config.ini'
+    config = configparser.ConfigParser()
+    config.read(ini_file)
+    
+    # Add each Section's config entries to a single dictionary, excluding Section headers
+    config_ini = {}
+    for section in config.sections():
+        config_ini.update(config._sections[section])
+    
+    # Convert boolean values from str to bool
+    for key in config_ini:
+        if config_ini[key] == 'True' or config_ini[key] == 'False':
+            config_ini[key] = config_ini[key] == 'True'
+    
+    return config_ini
+
 
 def str2bool(string: str) -> bool | None:
     """Convert a given string to a boolean. Returns `None` if string is unlisted as representing unambiguous True or False.

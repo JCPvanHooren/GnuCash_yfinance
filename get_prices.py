@@ -6,7 +6,7 @@
 4. and/or Load prices to GnuCash `prices` table
 
 Note:
-    All options can have a default value by adding the 'long' key in `defaults.ini`
+    All options can have a default value by adding the 'long' key in `config.ini`
 
 options:
     -h, --help  show this help message and exit
@@ -17,7 +17,6 @@ MariaDB server options:
         MariaDB host name or IP-address
     --port PORT
         MariaDB port (default: 3306)
-
     -d DATABASE, --database DATABASE
         GnuCash database name (default: gnucash)
 

@@ -20,11 +20,11 @@ The script does the following:
 
 ## Options
 
-### defaults.ini
+### config.ini
 
-The `defaults.ini` file can be used to customize default options, preventing the need to provide arguments in the command line. This will help to set default values that are used most regularly, while allowing for the default value to still be overwritten by providing options in the command line.
+The `config.ini` file can be used to customize default options, preventing the need to provide arguments in the command line. This will help to set default values that are used most regularly, while allowing for the default value to still be overwritten by providing options in the command line.
 
-_**Make sure to edit the standard defaults.ini!**_ It contains an invalid MariaDB host IP-address and the script will not work with this default (i.e. without explicitly providing a host through the command line)
+_**Make sure to edit the standard config.ini!**_ It contains an invalid MariaDB host IP-address and the script will not work with this default (i.e. without explicitly providing a host through the command line)
 
 ### MariaDB server options:
 
