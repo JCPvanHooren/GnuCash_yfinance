@@ -262,25 +262,6 @@ def parse_config(ini_file: str) -> dict:
     return config_ini
 
 
-def str2bool(string: str) -> bool | None:
-    """Convert a given string to a boolean. Returns `None` if string is unlisted as representing unambiguous True or False.
-    
-    Args:
-        string: String to be converted into a boolean
-    
-    Returns:
-        Boolean or None
-    
-    """
-    
-    if isinstance(string, str):
-        if string.lower() in ('true', 't', 'yes', 'y', 'on'):
-            return True
-        elif string.lower() in ('false', 'f', 'no', 'n', 'off'):
-            return False
-        else:
-            return None
-
 if __name__ == '__main__':
     args = vars(Args())
     for arg, val in args.items():
