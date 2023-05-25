@@ -11,7 +11,7 @@ Note:
 options:
     -h, --help  Show this help message and exit.
     --silent    Run script in silent mode. Do not interact with user to enable full automation. (default: False)
-    --config    Define an alternate 'config.ini` to use. (default: `config.ini`)
+    --config    Define an alternate `config.ini` to use. (default: `config.ini`)
 
 MariaDB server options:
     --host HOST
@@ -23,7 +23,7 @@ MariaDB server options:
     -u USERNAME, --user USERNAME
         GnuCash MariaDB username (default: current system username)
     --pwd
-        GnuCash MariaDB password. Must be provided in `config.ini` or cli when using `--silent`.
+        GnuCash MariaDB password. When using `--silent`, must be provided in `config.ini` or cli.
 
 GnuCash options:
     -c CURRENCY, --currency CURRENCY

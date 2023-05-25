@@ -24,6 +24,8 @@ The script does the following:
 
 The `config.ini` file can be used to customize default options, preventing the need to provide arguments in the command line. This will help to set default values that are used most regularly, while allowing for the default value to still be overwritten by providing options in the command line.
 
+While an alternate `config.ini` file name can be set via cli, this is the only option that (obviously) can not be set through `config.ini`.
+
 _**Make sure to edit the standard config.ini!**_ It contains an invalid MariaDB host IP-address and the script will not work with this default (i.e. without explicitly providing a host through the command line)
 
 ### General options:
@@ -41,6 +43,8 @@ _**Make sure to edit the standard config.ini!**_ It contains an invalid MariaDB 
 ||--host|MariaDB host name or IP-address |192.168.1.x|
 ||--port|MariaDB port|3306|
 |-d|--database|GnuCash database name|gnucash|
+|-u|--user|GnuCash MariaDB username|*Current system user*|
+||--pwd|GnuCash MariaDB password. When using `--silent`, must be provided in `config.ini` or cli.|
 
 ### GnuCash options:
 |Short|Long|Description|Default|
@@ -50,7 +54,12 @@ _**Make sure to edit the standard config.ini!**_ It contains an invalid MariaDB 
 ### Data options:
 |Short|Long|Description|Default|Options|
 |-|-|-|-|-|
+||--to-mdb|Load prices to MariaDB|False|True, False|
+||--to-csv|Save prices to csv|False|True, False|
 |-o|--output-path|Output path to store prices in csv|consolidated_prices.csv||
+||--overwrite-csv|Overwrite csv if it already exists|False|True, False|
+
+## Yahoo!Finance options:
 |-p|--period|Data period to download (either use period parameter or use start and end). 'auto' will determine start date based on last available price date|auto|auto, 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max|
 |-s|--start|If not using period: Download start date string||YYYY-MM-DD|
 |-e|--end|If not using period: Download end date string|_'today'_|YYYY-MM-DD|

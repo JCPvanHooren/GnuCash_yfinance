@@ -209,7 +209,7 @@ def parse_args() -> dict:
     mdb_server_group.add_argument('--port', help="MariaDB port")
     mdb_server_group.add_argument('-d', '--database', help="GnuCash database name")
     mdb_server_group.add_argument('-u', '--user', help="GnuCash MariaDB username")
-    mdb_server_group.add_argument('--pwd', help="GnuCash MariaDB password. Must be provided in `config.ini` or cli when using `--silent`.")
+    mdb_server_group.add_argument('--pwd', help="GnuCash MariaDB password. When using `--silent`, must be provided in `config.ini` or cli.")
     
     
     # GnuCash Options Group
