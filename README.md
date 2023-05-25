@@ -32,6 +32,7 @@ _**Make sure to edit the standard config.ini!**_ It contains an invalid MariaDB 
 |-|-|-|-|
 |-h|--help|Show help message and exit.||
 ||--silent|Run script in silent mode. Do not interact with user to enable full automation|False|
+||--config|Define an alternate `config.ini` to use|`config.ini`|
 
 ### MariaDB server options:
 

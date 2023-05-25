@@ -46,8 +46,7 @@ class Args:
         """
         
         self._cli_args = parse_args()
-        # TODO: Enable alternate `.ini` through cli
-        self._config_ini = parse_config('config.ini')
+        self._config_ini = parse_config(self._cli_args['config'])
                 
         # Set config_defaults dict to identify potential hardcoded defaults
         self._config_defaults = {
@@ -202,6 +201,7 @@ def parse_args() -> dict:
                 "\n3b. Load prices to GnuCash price table directly")
     parser = argparse.ArgumentParser(description=prog_descr, formatter_class=CustomFormatter)
     parser.add_argument('--silent', action='store_true', default=None, help="Run script in silent mode. Do not interact with user to enable full automation.")
+    parser.add_argument('--config', default='config.ini', help="Define an alternate 'config.ini' to use")
     
     # MariaDB server Options Group
     mdb_server_group = parser.add_argument_group('MariaDB server options')

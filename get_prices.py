@@ -10,7 +10,8 @@ Note:
 
 options:
     -h, --help  Show this help message and exit.
-    --silent   Run script in silent mode. Do not interact with user to enable full automation. (default: False)
+    --silent    Run script in silent mode. Do not interact with user to enable full automation. (default: False)
+    --config    Define an alternate 'config.ini` to use. (default: `config.ini`)
 
 MariaDB server options:
     --host HOST
@@ -141,7 +142,6 @@ def get_bool(prompt: str, default: str | bool) -> bool:
         raise ValueError("Prompt default must be one of %r." % VALID_DEFAULTS)
     
     while True:
-        # TODO use str2bool()
         valid_responses = {"y":True, "yes":True, "true":True, "n":False, "no":False, "false":False}
         try:
             if default == 'force':
