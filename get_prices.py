@@ -94,7 +94,7 @@ def main() -> None:
         helpers.print_headerline("-", True)
         
         # create DF object, containing relevant DataFrames
-        df = DF(commodity, args.currency, args.start_date, args.end_date, args.period)
+        df = DF(commodity, args)
         
         if not df.full_df.empty:
             # Print dataframe

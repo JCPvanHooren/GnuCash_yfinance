@@ -5,105 +5,119 @@
 
 """
 
-import yfinance
 from datetime import timedelta
 from datetime import date
-import pandas
 import uuid
+
+import pandas
+
+import helpers
+import yfinance
 
 class DF:
     """Manage Pandas Dataframes"""
-    def __init__(self, commodity, currency: str, start_date: date, end_date: date, period: str):
+    def __init__(self, commodity, _args: helpers.Args):
         """Initialize DF Class.
-        
+
         1. Set commodity
         2. Set properties
         3. Get DataFrame from Yahoo!Finance for relevant commodity
-        4. Create 'Full' DataFrame for GnuCash, including both SQL-relevant and CSV-relevant columns and values.
-        
+        4. Create 'Full' DataFrame for GnuCash, \
+        including both SQL-relevant and CSV-relevant columns and values.
+
         Args:
             commodity: GnuCash commodity
-            currency: GnuCash book default/base currency
-            start_date: If not using period - Download start date string (YYYY-MM-DD)
-            end_date: If not using period - Download end date string (YYYY-MM-DD). Defaults to `today`.
-            period: Data period to download (either use period parameter or use start and end). Defaults to 'auto', which will determine start date based on last available price date.
-        
+            _args: Processed arguments from cli and/or `config.ini`
+
         """
-        
+
         self._commodity = commodity
-        self._currency = currency
-        self._start_date = start_date
-        self._end_date = end_date
-        self._period = period
-        
+        self._currency = _args.currency
+        self._start_date = _args.start_date
+        self._end_date = _args.end_date
+        self._period = _args.period
+
         self._get_yf()
         self._set_full()
-    
+
     @property
     def commodity(self):
         """GnuCash commodity"""
         return self._commodity
-    
+
     @property
     def currency(self) -> str:
         """GnuCash book default/base currency"""
         return self._currency
-    
+
     @property
     def start_date(self) -> date:
         """If not using period - Download start date string (YYYY-MM-DD)"""
         return self._start_date
-    
+
     @property
     def end_date(self) -> date:
         """If not using period - Download end date string (YYYY-MM-DD). Defaults to `today`."""
         return self._end_date
-    
+
     @property
     def period(self) -> str:
         """Data period to download (either use period parameter or use start and end).
-        
+
         | Defaults to 'auto', which will determine start date based on last available price date.
-        | Valid choices = 'auto', '1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'.
+        | Valid choices = 'auto', '1d', '5d', '1mo', '3mo', '6mo', \
+        '1y', '2y', '5y', '10y', 'ytd', 'max'.
         """
         return self._period
-    
+
     @property
     def yf_df(self) -> pandas.DataFrame:
         """Pandas DataFrame with Commodity Prices from Yahoo!Finance"""
         return self._yf_df
-    
+
     @property
     def full_df(self) -> pandas.DataFrame:
-        """Pandas DataFrame with Full dataset for GnuCash, including both SQL-relevant and CSV-relevant columns and values."""
+        """Pandas DataFrame with Full dataset for GnuCash,
+        including both SQL-relevant and CSV-relevant columns and values.
+        """
         return self._full_df
-    
+
     @property
     def stdout_df(self) -> pandas.DataFrame:
         """Pandas DataFrame with selected data to print to STDOUT"""
         return self.full_df[['Curr', 'Close']]
-    
+
     @property
     def sql_df(self) -> pandas.DataFrame:
         """Pandas DataFrame with selected data for SQL Load to GnuCash `prices` table @ MariaDB"""
-        return self.full_df[['guid', 'commodity_guid', 'currency_guid', 'source', 'type', 'value_num', 'value_denom']]
-    
+        return self.full_df[[
+            'guid',
+            'commodity_guid',
+            'currency_guid',
+            'source',
+            'type',
+            'value_num',
+            'value_denom'
+        ]]
+
     def _get_yf(self) -> None:
         """Get DataFrame from Yahoo!Finance for relevant commodity"""
         if self.commodity.namespace == 'CURRENCY':
             yf_symbol = self.commodity.mnemonic + self.currency + '=X'
         else:
             yf_symbol = self.commodity.mnemonic
-        
+
         if self.start_date:
-            self._yf_df = yfinance.Ticker(yf_symbol).history(start = self.start_date, end = self.end_date)
+            self._yf_df = yfinance.Ticker(yf_symbol).history(
+                start = self.start_date, end = self.end_date)
         else:
             if self.period == 'auto':
                 start_date = self.commodity.last_price_date + timedelta(1)
-                self._yf_df = yfinance.Ticker(yf_symbol).history(start = start_date, end = self.end_date)
+                self._yf_df = yfinance.Ticker(yf_symbol).history(
+                    start = start_date, end = self.end_date)
             else:
                 self._yf_df = yfinance.Ticker(yf_symbol).history(self.period)
-    
+
     def _set_full(self) -> None:
         """Create Full DataFrame by processing and enriching Yahoo!Finance DataFrame"""
         if (not self.yf_df.empty and self.commodity.mnemonic != self.currency):
