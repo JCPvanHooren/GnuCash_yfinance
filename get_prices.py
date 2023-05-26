@@ -85,7 +85,7 @@ def main() -> None:
         print("When activating 'silent' mode, always provide a GnuCash MariaDB password through cli or 'config.ini'")
         sys.exit("Exiting script...")
     else:
-        mdb = MDB(args.host, args.port, args.database, args.user, args.pwd)
+        mdb = MDB(args)
 
     # Process each commodity
     for commodity in mdb.commodities:
