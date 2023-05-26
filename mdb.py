@@ -106,7 +106,7 @@ class MDB:
                             commodities_table.c.mnemonic,
                             commodities_table.c.fullname,
                             prices_table.c.currency_guid,
-                            func.date(func.max(prices_table.c.date)).label('last_price_date'),
+                            func.date(func.max(prices_table.c.date)).label('last_price_date'), # pylint: disable-msg=E1102
                             prices_table.c.value_denom)
                     .select_from(commodities_table)
                     .join(prices_table, commodities_table.c.guid == prices_table.c.commodity_guid)

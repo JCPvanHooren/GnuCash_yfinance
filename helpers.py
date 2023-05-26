@@ -27,7 +27,8 @@ def print_headerline(char: str, leading_newline: Optional[bool] = False) -> None
         print()
     print(char * 64)
 
-class Args:
+class Args: # pylint: disable-msg=R0902
+    # pylint: disable-msg=E1101
     """Store processed arguments from cli and config.ini"""
 
     def __init__(self):
@@ -74,6 +75,7 @@ class Args:
 
         # Initialize properties from defaults ChainMap,
         for key, default_value in self._defaults_cm.items():
+            # pylint: disable-msg=W0122
             exec(
                 f"self._{key} = self._defaults_cm['{key}'] "
                 f"if '{key}' in self._defaults_cm else '{default_value}'"
@@ -156,6 +158,7 @@ class Args:
 
     @overwrite_csv.setter
     def overwrite_csv(self, val: bool) -> None:
+        # pylint: disable-msg=E0203
         if self._overwrite_csv is None:
             self._overwrite_csv = val
         else:

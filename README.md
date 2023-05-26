@@ -74,3 +74,5 @@ _**Make sure to edit the standard config.ini!**_ It contains an invalid MariaDB 
 |helpers.py|Helper functions used across multiple modules|
 |mdb.py|'MDB' Class<br/>to work with GnuCash @ MariaDB,<br/>using [SQLAlchemy](https://www.sqlalchemy.org/)|
 |df.py|'DF' Class <br/>to create & store [Pandas](https://pandas.pydata.org/) DataFrames per commodity,<br/> retrieved from [Yahoo!Finance](https://finance.yahoo.com/),<br/>using [ranaroussi/yfinance](https://github.com/ranaroussi/yfinance)|
+
+[![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/pylint-dev/pylint)
