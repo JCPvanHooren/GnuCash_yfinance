@@ -152,7 +152,7 @@ def delete_csv() -> None:
     if os.path.exists(args.output_path):
         args.overwrite_csv = get_bool(
             f"{args.output_path} already exists."
-            f" Do you want to overwrite? ['Enter' = Yes] ",
+            f" Do you want to overwrite? ['Enter' = {args.overwrite_csv}] ",
             args.overwrite_csv if isinstance(args.overwrite_csv, bool) else 'force'
         )
         if args.overwrite_csv:
@@ -182,7 +182,16 @@ def get_bool(prompt: str, default: str | bool) -> bool:
         raise ValueError(f"Prompt default must be one of {valid_defaults}.")
 
     while True:
-        valid_responses = {"y":True, "yes":True, "true":True, "n":False, "no":False, "false":False}
+        valid_responses = {}
+        
+        valid_pos_resp = ['y', 'yes', 't', 'true']
+        for i in valid_pos_resp:
+            valid_responses.update({i:True})
+        
+        valid_neg_resp = ['n', 'no', 'f', 'false']
+        for i in valid_neg_resp:
+            valid_responses.update({i:False})
+        
         try:
             if isinstance(default, bool):
                 # Add `default` to `valid_responses`,
@@ -192,7 +201,7 @@ def get_bool(prompt: str, default: str | bool) -> bool:
             # therefor the try will fail without an input != ""
             return valid_responses[input(prompt).lower()]
         except KeyError:
-            print("Invalid input please enter 'y'/'Y' (Yes) or 'n'/'N' (No)!")
+            print(f"Invalid input. Please enter: {valid_pos_resp} OR {valid_neg_resp}")
 
 if __name__ == '__main__':
     main()
