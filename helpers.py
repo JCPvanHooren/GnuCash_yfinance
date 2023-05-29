@@ -158,11 +158,7 @@ class Args: # pylint: disable-msg=R0902
 
     @overwrite_csv.setter
     def overwrite_csv(self, val: bool) -> None:
-        # pylint: disable-msg=E0203
-        if self._overwrite_csv is None:
-            self._overwrite_csv = val
-        else:
-            print(f"overwrite_csv already set to {self.overwrite_csv}. Ignoring request to set")
+        self._overwrite_csv = val
 
     @property
     def period(self) -> str:
