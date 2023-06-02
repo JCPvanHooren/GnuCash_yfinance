@@ -10,46 +10,71 @@ and/or load them to GnuCash @ MariaDB.
 Note:
     All options can have a default value by adding the 'long' key in `config.ini`.
 
-options:
-    -h, --help  Show this help message and exit.
-    --silent    Run script in silent mode. \
-        Do not interact with user to enable full automation. (default: False)
-    --config    Define an alternate `config.ini` to use. (default: `config.ini`)
+General options:
+    -h, --help
+        Show this help message and exit.
+    --silent
+        Run script in silent mode.
+        Do not interact with user to enable full automation.
+        (Default = False)
+    --config
+        Define an alternate `config.ini` to use.
+        (Default = `config.ini`)
+    --ppprocedure
+        'Post Processing' stored procedure to be executed
+        after prices have been loaded.
+    --ppdb
+        Database in which the ppprocedure is stored.
 
 MariaDB server options:
     --host HOST
-        MariaDB host name or IP-address
+        MariaDB host name or IP-address.
     --port PORT
-        MariaDB port (default: 3306)
-    -d DATABASE, --database DATABASE
-        GnuCash database name (default: gnucash)
+        MariaDB port
+        (Default = 3306).
     -u USERNAME, --user USERNAME
-        GnuCash MariaDB username (default: current system username)
+        MariaDB username
+        (Default = `current system user`).
     --pwd
-        GnuCash MariaDB password. When using `--silent`, must be provided in `config.ini` or cli.
+        MariaDB password.
+
+Important:
+    When using `silent`, `pwd` must be provided in `config.ini` or cli.
 
 GnuCash options:
+    -d DATABASE, --database DATABASE
+        GnuCash database name
+            (Default = gnucash).
     -c CURRENCY, --currency CURRENCY
-        GnuCash book default/base currency (default: EUR)
+        GnuCash book default/base currency
+        (Default = EUR).
 
 Data options:
     --to-mdb
-        Load prices to MariaDB (default: False)
+        Load prices to MariaDB
+        (Default = False).
     --to-csv
-        Save prices to csv (default: False)
+        Save prices to csv
+        (Default = False).
     -o OUTPUT_PATH, --output-path OUTPUT_PATH
-        Output path to store prices in csv (default: 'consolidated_prices.csv')
+        Output path to store prices in csv
+        (Default = consolidated_prices.csv).
     --overwrite_csv
-        Overwrite csv if it already exists (default: False)
+        Overwrite csv if it already exists
+        (Default = False).
 
 Yahoo!Finance options:
     -p PERIOD, --period PERIOD
-        Data period to download (either use period parameter or use start and end). \
-            'auto' will determine start date based on last available price date (default: auto)
+        | Data period to download (Default = auto).
+            | Data period to download
+              (Default = auto).
+            | Choices: auto, 1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max.
+            | 'auto' will determine start date based on last available price date in `database`.
     -s START_DATE, --start-date START_DATE
-        If not using period: Download start date string (YYYY-MM-DD) (default: None)
+        If not using period: Download start date string (YYYY-MM-DD).
     -e END_DATE, --end-date END_DATE
-        If not using period: Download end date string (YYYY-MM-DD) (default: `today`)
+        If not using period: Download end date string (YYYY-MM-DD)
+        (Default = `today`).
 
 .. _Google Python Style Guide:
    http://google.github.io/styleguide/pyguide.html
@@ -67,10 +92,9 @@ import sys
 import os
 
 import helpers
-from mdb import MDB
-from df import DF
-
-args = None # pylint: disable-msg=C0103
+import config
+import mdb
+import df
 
 def main() -> None:
     """The main module to download commodity prices from Yahoo!Finance \
@@ -78,37 +102,44 @@ def main() -> None:
 
     """
 
-    global args # pylint: disable-msg=W0603
-    args = helpers.Args()
+    general_cfg, conn_cfg, gnucash_cfg, data_cfg, yf_cfg = config.process_config()
 
-    if not args.silent:
-        args.to_mdb = get_bool(
-            f"Load prices to: MariaDB://{args.host}:{args.port}/{args.database}?"
-            f" ['Enter' = {args.to_mdb}] ",
-            args.to_mdb if isinstance(args.to_mdb, bool) else 'force'
+    if not general_cfg.silent:
+        # Collect user input
+        data_cfg.to_mdb = get_bool(
+            f"Load prices to '{gnucash_cfg.database}'?"
+            f" ['Enter' = {data_cfg.to_mdb}] ",
+            data_cfg.to_mdb if isinstance(data_cfg.to_mdb, bool) else 'force'
         )
 
-        args.to_csv = get_bool(
-            f"Save prices to: {args.output_path}?"
-            f" ['Enter' = {args.to_csv}] ",
-            args.to_csv if isinstance(args.to_csv, bool) else 'force'
+        data_cfg.to_csv = get_bool(
+            f"Save prices to: {data_cfg.output_path}?"
+            f" ['Enter' = {data_cfg.to_csv}] ",
+            data_cfg.to_csv if isinstance(data_cfg.to_csv, bool) else 'force'
+        )
+
+        execute_ppprocedure = get_bool(
+            f"Execute stored procedure '{general_cfg.ppprocedure}' @ '{general_cfg.ppdb}'?"
+            f" ['Enter' = {general_cfg.ppprocedure is not None}] ",
+            general_cfg.ppprocedure is not None
         )
 
         # If user chose to write prices to csv, delete pre-existing csv-file, if present
-        if args.to_csv:
-            delete_csv()
+        if data_cfg.to_csv:
+            delete_csv(data_cfg.output_path, data_cfg.overwrite_csv)
 
-    # GnuCash @ MariaDB
-    if args.silent and args.pwd is None:
+    # Check presence of required config values
+    if general_cfg.silent and conn_cfg.pwd is None:
         print("Silent mode activated, but no password provided.")
         print("When activating 'silent' mode, "
             "always provide a GnuCash MariaDB password through cli or 'config.ini'")
         sys.exit("Exiting script...")
-    else:
-        mdb = MDB(args)
+
+    gnucash_engine = mdb.create_engine(conn_cfg, gnucash_cfg.database)
+    commodities = mdb.get_commodities(gnucash_engine)
 
     # Process each commodity
-    for commodity in mdb.commodities:
+    for commodity in commodities:
         helpers.print_headerline("-", True)
         print(
             f"Full Name: {commodity.fullname}\n"
@@ -119,49 +150,68 @@ def main() -> None:
         )
         helpers.print_headerline("-", True)
 
-        # create DF object, containing relevant DataFrames
-        df = DF(commodity, args) # pylint: disable-msg=C0103
+        # create DataFrame that contains commodity prices
+        comm_df = df.CommodityDataFrame(commodity, gnucash_cfg.currency, yf_cfg)
 
-        if not df.full_df.empty:
+        if not comm_df.full_df.empty:
             # Print dataframe
-            print(df.stdout_df)
+            print(comm_df.stdout_df)
 
-            if args.to_csv:
+            if data_cfg.to_csv:
                 # Write dataframe to CSV
-                print(f"\nWriting to {args.output_path}... ", end = '')
-                df.full_df.to_csv(
-                    args.output_path,
+                print(f"\nWriting to {data_cfg.output_path}... ", end = '')
+                comm_df.full_df.to_csv(
+                    data_cfg.output_path,
                     mode = 'a',
-                    header = not os.path.exists(args.output_path)
+                    header = not os.path.exists(data_cfg.output_path)
                 )
                 print("ADDED")
 
-            if args.to_mdb:
+            if data_cfg.to_mdb:
                 # Load to GnuCash @ MariaDB through SQL
                 print("\nLoading to GnuCash @ MariaDB through SQL...")
-                df.sql_df.to_sql(
+                comm_df.sql_df.to_sql(
                     name = 'prices',
-                    con = mdb.engine,
+                    con = gnucash_engine,
                     if_exists = 'append',
                     index = True
                 )
+    # Run 'post processing' stored procedure, if provided
+    if (
+        general_cfg.ppprocedure is not None
+        and execute_ppprocedure is not False
+    ):
+        if general_cfg.ppdb is None:
+            print(
+                f"Post processing database not provided.\n"
+                f"Cannot execute '{general_cfg.ppprocedure}'.")
+            sys.exit("Exiting script...")
+        else:
+            gnu_inv_engine = mdb.create_engine(conn_cfg, general_cfg.ppdb)
+            mdb.execute_procedure(general_cfg.ppprocedure, gnu_inv_engine)
 
-def delete_csv() -> None:
-    """Delete pre-existing file @ <output_path>, if present."""
+def delete_csv(output_path: str, overwrite_csv: bool) -> None:
+    """Delete pre-existing file @ <output_path>, if present.
 
-    if os.path.exists(args.output_path):
-        args.overwrite_csv = get_bool(
-            f"{args.output_path} already exists."
-            f" Do you want to overwrite? ['Enter' = {args.overwrite_csv}] ",
-            args.overwrite_csv if isinstance(args.overwrite_csv, bool) else 'force'
+    Args:
+        output_path (str): Output path to store prices in csv
+        overwrite_csv (bool): Preference to overwrite csv
+
+    """
+
+    if os.path.exists(output_path):
+        overwrite_csv = get_bool(
+            f"{output_path} already exists."
+            f" Do you want to overwrite? ['Enter' = {overwrite_csv}] ",
+            overwrite_csv if isinstance(overwrite_csv, bool) else 'force'
         )
-        if args.overwrite_csv:
-            print(f"Deleting {args.output_path}...")
-            os.remove(args.output_path)
+        if overwrite_csv:
+            print(f"Deleting {output_path}...")
+            os.remove(output_path)
         else:
             sys.exit("Exiting script...")
     else:
-        print(f"{args.output_path} does not exist / will be created.")
+        print(f"{output_path} does not exist / will be created.")
 
 def get_bool(prompt: str, default: str | bool) -> bool:
     """Helper function to prompt user for confirmation of an action.
@@ -183,15 +233,15 @@ def get_bool(prompt: str, default: str | bool) -> bool:
 
     while True:
         valid_responses = {}
-        
+
         valid_pos_resp = ['y', 'yes', 't', 'true']
         for i in valid_pos_resp:
             valid_responses.update({i:True})
-        
+
         valid_neg_resp = ['n', 'no', 'f', 'false']
         for i in valid_neg_resp:
             valid_responses.update({i:False})
-        
+
         try:
             if isinstance(default, bool):
                 # Add `default` to `valid_responses`,
@@ -199,7 +249,9 @@ def get_bool(prompt: str, default: str | bool) -> bool:
                 valid_responses[""] = default
             # If `default` = 'force', "" will not be added to `valid_responses`
             # therefor the try will fail without an input != ""
-            return valid_responses[input(prompt).lower()]
+            response = valid_responses[input(prompt).lower()]
+            print(f"-> {response}")
+            return response
         except KeyError:
             print(f"Invalid input. Please enter: {valid_pos_resp} OR {valid_neg_resp}")
 

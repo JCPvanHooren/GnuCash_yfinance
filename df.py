@@ -10,13 +10,13 @@ from datetime import date
 import uuid
 
 import pandas
-
-import helpers
 import yfinance
 
-class DF:
-    """Manage Pandas Dataframes"""
-    def __init__(self, commodity, _args: helpers.Args):
+import config
+
+class CommodityDataFrame:
+    """Class to store Pandas Dataframes for a Commodity."""
+    def __init__(self, commodity, currency: str, data_cfg: config.DataConfig):
         """Initialize DF Class.
 
         1. Set commodity
@@ -27,48 +27,19 @@ class DF:
 
         Args:
             commodity: GnuCash commodity
-            _args: Processed arguments from cli and/or `config.ini`
+            currency: GnuCash book default/base currency
+            data_cfg: Yahoo!Finance Data options
 
         """
 
         self._commodity = commodity
-        self._currency = _args.currency
-        self._start_date = _args.start_date
-        self._end_date = _args.end_date
-        self._period = _args.period
+        self._currency = currency
+        self._start_date = data_cfg.start_date
+        self._end_date = data_cfg.end_date
+        self._period = data_cfg.period
 
         self._get_yf()
         self._set_full()
-
-    @property
-    def commodity(self):
-        """GnuCash commodity"""
-        return self._commodity
-
-    @property
-    def currency(self) -> str:
-        """GnuCash book default/base currency"""
-        return self._currency
-
-    @property
-    def start_date(self) -> date:
-        """If not using period - Download start date string (YYYY-MM-DD)"""
-        return self._start_date
-
-    @property
-    def end_date(self) -> date:
-        """If not using period - Download end date string (YYYY-MM-DD). Defaults to `today`."""
-        return self._end_date
-
-    @property
-    def period(self) -> str:
-        """Data period to download (either use period parameter or use start and end).
-
-        | Defaults to 'auto', which will determine start date based on last available price date.
-        | Valid choices = 'auto', '1d', '5d', '1mo', '3mo', '6mo', \
-        '1y', '2y', '5y', '10y', 'ytd', 'max'.
-        """
-        return self._period
 
     @property
     def yf_df(self) -> pandas.DataFrame:
@@ -102,42 +73,42 @@ class DF:
 
     def _get_yf(self) -> None:
         """Get DataFrame from Yahoo!Finance for relevant commodity"""
-        if self.commodity.namespace == 'CURRENCY':
-            yf_symbol = self.commodity.mnemonic + self.currency + '=X'
+        if self._commodity.namespace == 'CURRENCY':
+            yf_symbol = self._commodity.mnemonic + self._currency + '=X'
         else:
-            yf_symbol = self.commodity.mnemonic
+            yf_symbol = self._commodity.mnemonic
 
-        if self.start_date:
+        if self._start_date:
             self._yf_df = yfinance.Ticker(yf_symbol).history(
-                start = self.start_date, end = self.end_date)
+                start = self._start_date, end = self._end_date)
         else:
-            if self.period == 'auto':
-                start_date = self.commodity.last_price_date + timedelta(1)
+            if self._period == 'auto':
+                start_date = self._commodity.last_price_date + timedelta(1)
                 self._yf_df = yfinance.Ticker(yf_symbol).history(
-                    start = start_date, end = self.end_date)
+                    start = start_date, end = self._end_date)
             else:
-                self._yf_df = yfinance.Ticker(yf_symbol).history(self.period)
+                self._yf_df = yfinance.Ticker(yf_symbol).history(self._period)
 
     def _set_full(self) -> None:
         """Create Full DataFrame by processing and enriching Yahoo!Finance DataFrame"""
-        if (not self.yf_df.empty and self.commodity.mnemonic != self.currency):
+        if (not self.yf_df.empty and self._commodity.mnemonic != self._currency):
             self._full_df = self.yf_df[['Close']].copy()
             self._full_df.index = self.full_df.index.tz_localize(None)
             self._full_df.index.name = 'date'
-            self._full_df['Curr'] = self.currency
-            self._full_df['Symbol'] = self.commodity.mnemonic
-            self._full_df['Full_Name'] = self.commodity.fullname
-            self._full_df['Namespace'] = self.commodity.namespace
-            if self.commodity.namespace == 'CURRENCY':
+            self._full_df['Curr'] = self._currency
+            self._full_df['Symbol'] = self._commodity.mnemonic
+            self._full_df['Full_Name'] = self._commodity.fullname
+            self._full_df['Namespace'] = self._commodity.namespace
+            if self._commodity.namespace == 'CURRENCY':
                 self._full_df['Close'] = self.full_df['Close'].round(decimals = 5)
             else:
                 self._full_df['Close'] = self.full_df['Close'].round(decimals = 2)
             self._full_df['guid'] = [uuid.uuid4().hex for _ in range(len(self.full_df.index))]
-            self._full_df['commodity_guid'] = self.commodity.guid
-            self._full_df['currency_guid'] = self.commodity.currency_guid
+            self._full_df['commodity_guid'] = self._commodity.guid
+            self._full_df['currency_guid'] = self._commodity.currency_guid
             self._full_df['source'] = 'user:price'
             self._full_df['type'] = 'last'
-            self._full_df['value_num'] = self.full_df['Close'] * self.commodity.value_denom
-            self._full_df['value_denom'] = self.commodity.value_denom
+            self._full_df['value_num'] = self.full_df['Close'] * self._commodity.value_denom
+            self._full_df['value_denom'] = self._commodity.value_denom
         else:
             self._full_df = pandas.DataFrame()
