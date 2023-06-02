@@ -10,119 +10,71 @@
 
 """
 
-import getpass
-
-from sqlalchemy import URL, create_engine, MetaData, Table, select, Engine
+from sqlalchemy import URL, create_engine as sqla_create_engine, MetaData, Table, select, Engine
 from sqlalchemy.sql import func
 
 import helpers
+import config
 
-class MDB:
-    """Manage GnuCash @ MariaDB connection, properties and selected data"""
-    def __init__(self, _args: helpers.Args) -> None:
-        """Initialize MariaDB connection, using host, port and database arguments
+def create_engine(connection_cfg: object, database: str) -> Engine:
+    """Create SqlAlchemy MariaDB Engine.
 
-        Create MariaDB SqlAlchemy Engine and get commodities.
+    Args:
+        connection_cfg: host, port, user and pwd to connect with.
+        database: database to connect to.
 
-        Args:
-            _args: Processed arguments from cli and/or `config.ini`
+    """
 
-        """
+    url_object = URL.create(
+        'mariadb+pymysql',
+        username = connection_cfg.user,
+        password = connection_cfg.pwd,
+        host = connection_cfg.host,
+        port = connection_cfg.port,
+        database = database
+    )
+    print(url_object)
+    return sqla_create_engine(url_object)
 
-        self._host = _args.host
-        self._port = _args.port
-        self._database = _args.database
+def get_commodities(engine: Engine):
+    """Get commodities from GnuCash @ MariaDB.
 
-        # Create MariaDB SQLAlchemy Engine
-        self._create_engine(_args.user, _args.pwd)
-        self._get_commodities()
+    Args:
+        engine: SqlAlchemy engine to run query against.
 
-    @property
-    def host(self) -> str:
-        """MariaDB host name or IP-address"""
-        return self._host
+    """
 
-    @property
-    def port(self) -> int:
-        """MariaDB port"""
-        return self._port
+    # Read MetaData from GnuCash tables through 'table reflection'
+    # https://docs.sqlalchemy.org/en/20/tutorial/metadata.html#table-reflection
+    metadata_obj = MetaData()
+    commodities_table = Table('commodities', metadata_obj, autoload_with = engine)
+    prices_table = Table('prices', metadata_obj, autoload_with = engine)
 
-    @property
-    def database(self) -> str:
-        """GnuCash database name"""
-        return self._database
+    # Build SELECT SQL statement through SQLAlchemy to select commodities
+    sql_stmt = (select(commodities_table.c.guid,
+                        commodities_table.c.namespace,
+                        commodities_table.c.mnemonic,
+                        commodities_table.c.fullname,
+                        prices_table.c.currency_guid,
+                        func.date(func.max(prices_table.c.date)).label('last_price_date'), # pylint: disable-msg=E1102
+                        prices_table.c.value_denom)
+                .select_from(commodities_table)
+                .join(prices_table, commodities_table.c.guid == prices_table.c.commodity_guid)
+                .where(commodities_table.c.namespace != 'template')
+                .where(commodities_table.c.mnemonic != 'EUR')
+                .where(commodities_table.c.mnemonic != 'CHE')
+                .group_by(commodities_table.c.mnemonic))
 
-    @property
-    def engine(self) -> Engine:
-        """SqlAlchemy MariaDB Engine"""
-        return self._engine
-
-    @property
-    def commodities(self):
-        """GnuCash Commodities from MariaDB"""
-        return self._commodities
-
-    def _get_username(self) -> str:
-        """Get MariaDB username from user. Defaults to current system user."""
-        default_user = getpass.getuser().title()
-        print(
-            f"\nEnter a username and password to connect to: "
-            f"MariaDB://{self.host}:{self.port}/{self.database}"
-        )
-        return input(
-            f"Provide username or hit 'Enter' to use default "
-            f"({default_user}): ") or default_user
-
-    def _get_password(self) -> str:
-        """Get MariaDB password from user."""
-        pwd = getpass.getpass()
-        while not pwd:
-            pwd = getpass.getpass('Password cannot be empty. Please enter a Password: ')
-        return pwd
-
-    def _create_engine(self, user, pwd) -> None:
-        """Create SqlAlchemy MariaDB Engine"""
-        _mdb_usr = self._get_username() if user is None else user
-        _mdb_pwd = self._get_password() if pwd is None else pwd
-        url_object = URL.create('mariadb+pymysql',
-                                            username = _mdb_usr,
-                                            password = _mdb_pwd,
-                                            host = self.host,
-                                            port = self.port,
-                                            database = self.database)
-        self._engine = create_engine(url_object)
-
-    def _get_commodities(self) -> None:
-        """Get commodities from GnuCash @ MariaDB"""
-        # Read MetaData from GnuCash tables through 'table reflection'
-        # https://docs.sqlalchemy.org/en/20/tutorial/metadata.html#table-reflection
-        metadata_obj = MetaData()
-        commodities_table = Table('commodities', metadata_obj, autoload_with = self.engine)
-        prices_table = Table('prices', metadata_obj, autoload_with = self.engine)
-
-        # Build SELECT SQL statement through SQLAlchemy to select commodities
-        sql_stmt = (select(commodities_table.c.guid,
-                            commodities_table.c.namespace,
-                            commodities_table.c.mnemonic,
-                            commodities_table.c.fullname,
-                            prices_table.c.currency_guid,
-                            func.date(func.max(prices_table.c.date)).label('last_price_date'), # pylint: disable-msg=E1102
-                            prices_table.c.value_denom)
-                    .select_from(commodities_table)
-                    .join(prices_table, commodities_table.c.guid == prices_table.c.commodity_guid)
-                    .where(commodities_table.c.namespace != 'template')
-                    .where(commodities_table.c.mnemonic != 'EUR')
-                    .where(commodities_table.c.mnemonic != 'CHE')
-                    .group_by(commodities_table.c.mnemonic))
-
-        with self.engine.connect() as conn:
-            self._commodities = conn.execute(sql_stmt)
+    with engine.connect() as conn:
+        return conn.execute(sql_stmt)
 
 if __name__ == '__main__':
-    args = helpers.Args()
-    mdb = MDB(args)
+    general_cfg, conn_cfg, gnucash_cfg, data_cfg, yf_cfg = config.process_config()
+    gnucash_engine = create_engine(conn_cfg, gnucash_cfg.database)
+    commodities = get_commodities(gnucash_engine)
+
     print('Selecting Commodities from GnuCash @ MariaDB... ', end = '')
     print('SELECTED')
     helpers.print_headerline("=", False)
-    for commodity in mdb.commodities:
+    for commodity in commodities:
         print(commodity)

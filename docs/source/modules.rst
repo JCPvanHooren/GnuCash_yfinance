@@ -4,7 +4,8 @@ GnuCash_yfinance
 .. toctree::
    :maxdepth: 4
 
-   get_prices
-   mdb
+   config
    df
+   get_prices
    helpers
+   mdb
