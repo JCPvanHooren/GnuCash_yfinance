@@ -10,7 +10,7 @@ and/or load them to GnuCash @ MariaDB.
 Note:
     All options can have a default value by adding the 'long' key in `config.ini`.
 
-options:
+General options:
     -h, --help
         Show this help message and exit.
     --silent
@@ -107,7 +107,7 @@ def main() -> None:
     if not general_cfg.silent:
         # Collect user input
         data_cfg.to_mdb = get_bool(
-            f"Load prices to: MariaDB://{conn_cfg.host}:{conn_cfg.port}/{gnucash_cfg.database}?"
+            f"Load prices to '{gnucash_cfg.database}'?"
             f" ['Enter' = {data_cfg.to_mdb}] ",
             data_cfg.to_mdb if isinstance(data_cfg.to_mdb, bool) else 'force'
         )
@@ -116,6 +116,12 @@ def main() -> None:
             f"Save prices to: {data_cfg.output_path}?"
             f" ['Enter' = {data_cfg.to_csv}] ",
             data_cfg.to_csv if isinstance(data_cfg.to_csv, bool) else 'force'
+        )
+
+        execute_ppprocedure = get_bool(
+            f"Execute stored procedure '{general_cfg.ppprocedure}' @ '{general_cfg.ppdb}'?"
+            f" ['Enter' = {general_cfg.ppprocedure is not None}] ",
+            general_cfg.ppprocedure is not None
         )
 
         # If user chose to write prices to csv, delete pre-existing csv-file, if present
@@ -170,13 +176,26 @@ def main() -> None:
                     if_exists = 'append',
                     index = True
                 )
+    # Run 'post processing' stored procedure, if provided
+    if (
+        general_cfg.ppprocedure is not None
+        and execute_ppprocedure is not False
+    ):
+        if general_cfg.ppdb is None:
+            print(
+                f"Post processing database not provided.\n"
+                f"Cannot execute '{general_cfg.ppprocedure}'.")
+            sys.exit("Exiting script...")
+        else:
+            gnu_inv_engine = mdb.create_engine(conn_cfg, general_cfg.ppdb)
+            mdb.execute_procedure(general_cfg.ppprocedure, gnu_inv_engine)
 
 def delete_csv(output_path: str, overwrite_csv: bool) -> None:
     """Delete pre-existing file @ <output_path>, if present.
 
     Args:
         output_path (str): Output path to store prices in csv
-        overwrite_csv (bool): Preference to overwrite csv 
+        overwrite_csv (bool): Preference to overwrite csv
 
     """
 
@@ -230,7 +249,9 @@ def get_bool(prompt: str, default: str | bool) -> bool:
                 valid_responses[""] = default
             # If `default` = 'force', "" will not be added to `valid_responses`
             # therefor the try will fail without an input != ""
-            return valid_responses[input(prompt).lower()]
+            response = valid_responses[input(prompt).lower()]
+            print(f"-> {response}")
+            return response
         except KeyError:
             print(f"Invalid input. Please enter: {valid_pos_resp} OR {valid_neg_resp}")
 

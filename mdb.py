@@ -1,6 +1,6 @@
 """If run as main module (not imported), execute:
 
-    1. Parse cli arguments
+    1. Process configuration
     2. Create MariaDB SqlAlchemy Engine
     3. Get GnuCash Commodities from MariaDB
     4. Print Commodities to STDOUT
@@ -10,7 +10,7 @@
 
 """
 
-from sqlalchemy import URL, create_engine as sqla_create_engine, MetaData, Table, select, Engine
+from sqlalchemy import URL, create_engine as sqla_create_engine, MetaData, Table, select, Engine, text
 from sqlalchemy.sql import func
 
 import helpers
@@ -33,10 +33,9 @@ def create_engine(connection_cfg: object, database: str) -> Engine:
         port = connection_cfg.port,
         database = database
     )
-    print(url_object)
     return sqla_create_engine(url_object)
 
-def get_commodities(engine: Engine):
+def get_commodities(engine: Engine) -> None:
     """Get commodities from GnuCash @ MariaDB.
 
     Args:
@@ -68,6 +67,18 @@ def get_commodities(engine: Engine):
     with engine.connect() as conn:
         return conn.execute(sql_stmt)
 
+def execute_procedure(procedure: str, engine: Engine) -> None:
+    """Call a procedure in a designated database, using a SqlAlchemy Engine.
+    
+    Args:
+        procedure: name of the stored procedure to be executed.
+        engine: SqlAlchemy database Engine where the procedure is stored.
+    
+    """
+    
+    with engine.connect() as conn:
+        return conn.execute(text(f"CALL {procedure}();"))
+
 if __name__ == '__main__':
     general_cfg, conn_cfg, gnucash_cfg, data_cfg, yf_cfg = config.process_config()
     gnucash_engine = create_engine(conn_cfg, gnucash_cfg.database)
@@ -78,3 +89,5 @@ if __name__ == '__main__':
     helpers.print_headerline("=", False)
     for commodity in commodities:
         print(commodity)
+    gnu_inv_engine = create_engine(conn_cfg, general_cfg.ppdb)
+    print(execute_procedure(general_cfg.ppprocedure, gnu_inv_engine))

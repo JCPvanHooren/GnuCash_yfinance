@@ -15,7 +15,7 @@ import yfinance
 import config
 
 class CommodityDataFrame:
-    """Manage Pandas Dataframes"""
+    """Class to store Pandas Dataframes for a Commodity."""
     def __init__(self, commodity, currency: str, data_cfg: config.DataConfig):
         """Initialize DF Class.
 
