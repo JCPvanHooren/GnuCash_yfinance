@@ -22,7 +22,6 @@ Tip:
 
 """
 
-import sys
 import argparse
 import configparser
 import getpass
@@ -46,6 +45,7 @@ class GeneralConfig:
             after prices have been loaded.
         ppdb (str):
             Database in which the ppprocedure is stored.
+            Required when using `ppprocedure`.
 
     """
 
@@ -145,6 +145,9 @@ class YahooFinanceConfig:
     start_date: date
     end_date: date
 
+class ConfigError(ValueError):
+    """Raised when a configuration variable is not defined correctly."""
+
 def process_config():
     """Main function to process configuration variables.
 
@@ -158,7 +161,7 @@ def process_config():
 
     cli_args = parse_args()
     config_ini = parse_config(cli_args['config'])
-    # Set config_defaults dict to identify potential hardcoded defaults
+    # Set config_defaults as ultimate fallback
     config_defaults = {
         'silent': False,
         'ppprocedure': None,
@@ -192,6 +195,9 @@ def process_config():
         config_cm['ppdb']
     )
 
+    if general.ppprocedure is not None and general.ppdb is None:
+        raise ConfigError("When using `ppprocedure`, `ppdb` must be provided.")
+
     # MariaDB Server Section
     conn = ConnectionConfig(
         config_cm['host'],
@@ -199,6 +205,10 @@ def process_config():
         config_cm['user'],
         config_cm['pwd']
     )
+
+    if conn.host is None:
+        raise ConfigError("MariaDB Server host address is mandatory.")
+
     if conn.user is None:
         # If no username was provided through cli or `config.ini`
         if general.silent:
@@ -210,10 +220,9 @@ def process_config():
 
     if conn.pwd is None:
         if general.silent:
-            print("When using `--silent`, a password must be provided in `config.ini` or cli.")
-            sys.exit("Exiting script...")
-        else:
-            conn.pwd = get_pwd()
+            raise ConfigError("When using `silent` mode, "
+                "a password must be provided in `config.ini` or cli.")
+        conn.pwd = get_pwd()
 
     # GnuCash Section
     gnucash = GnuCashConfig(
@@ -292,7 +301,7 @@ def parse_args() -> dict:
     )
     parser.add_argument(
         '--ppdb',
-        help = "Database in which the ppprocedure is stored."
+        help = "Database in which the ppprocedure is stored. Required when using `ppprocedure`."
     )
 
     # MariaDB server Options Group

@@ -25,6 +25,7 @@ General options:
         after prices have been loaded.
     --ppdb
         Database in which the ppprocedure is stored.
+        Required when using `ppprocedure`.
 
 MariaDB server options:
     --host HOST

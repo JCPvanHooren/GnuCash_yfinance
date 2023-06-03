@@ -11,3 +11,4 @@ config module
 	 .. autoclass:: GnuCashConfig
 	 .. autoclass:: DataConfig
 	 .. autoclass:: YahooFinanceConfig
+	 .. autoclass:: ConfigError
