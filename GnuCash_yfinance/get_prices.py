@@ -121,8 +121,8 @@ def main() -> None:
         if general_cfg.ppprocedure is not None and general_cfg.ppdb is not None:
             general_cfg.pp = get_bool(
                 f"Execute stored procedure '{general_cfg.ppprocedure}' @ '{general_cfg.ppdb}'?"
-                f" ['Enter' = {general_cfg.ppprocedure is not None}] ",
-                general_cfg.ppprocedure is not None
+                f" ['Enter' = {data_cfg.to_mdb}] ",
+                data_cfg.to_mdb
             )
         elif general_cfg.ppprocedure is not None and general_cfg.ppdb is None:
             print(
@@ -186,8 +186,11 @@ def main() -> None:
                 )
     # Run 'post processing' stored procedure, if desired
     if general_cfg.pp:
+        print_headerline("=", True)
         gnu_inv_engine = mdb.create_engine(conn_cfg, general_cfg.ppdb)
+        print(f"Executing {general_cfg.ppprocedure} @ {general_cfg.ppdb}... ", end = '')
         mdb.execute_procedure(general_cfg.ppprocedure, gnu_inv_engine)
+        print(f"DONE\n")
 
 def delete_csv(output_path: str, overwrite_csv: bool) -> bool:
     """Delete pre-existing file @ <output_path>, if present.
