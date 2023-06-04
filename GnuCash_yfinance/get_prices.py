@@ -89,7 +89,6 @@ __credits__ = (
     "ranaroussi, for creating and maintaining yfinance (https://github.com/ranaroussi/yfinance)"
 )
 
-import sys
 import os
 
 import helpers
@@ -119,22 +118,30 @@ def main() -> None:
             data_cfg.to_csv if isinstance(data_cfg.to_csv, bool) else 'force'
         )
 
-        execute_ppprocedure = get_bool(
-            f"Execute stored procedure '{general_cfg.ppprocedure}' @ '{general_cfg.ppdb}'?"
-            f" ['Enter' = {general_cfg.ppprocedure is not None}] ",
-            general_cfg.ppprocedure is not None
-        )
+        if general_cfg.ppprocedure is not None and general_cfg.ppdb is not None:
+            general_cfg.pp = get_bool(
+                f"Execute stored procedure '{general_cfg.ppprocedure}' @ '{general_cfg.ppdb}'?"
+                f" ['Enter' = {general_cfg.ppprocedure is not None}] ",
+                general_cfg.ppprocedure is not None
+            )
+        elif general_cfg.ppprocedure is not None and general_cfg.ppdb is None:
+            print(
+                f"You've provided {general_cfg.ppprocedure} for post processing, "
+                f"but no [required] `ppdb`.\n"
+                f"Skipping post processing..."
+            )
+            general_cfg.pp = False
+        elif general_cfg.ppprocedure is None and general_cfg.ppdb is not None:
+            print(
+                f"You've provided {general_cfg.ppdb} for post processing, "
+                f"but no [required] `ppprocedure`.\n"
+                f"Skipping post processing..."
+            )
+            general_cfg.pp = False
 
         # If user chose to write prices to csv, delete pre-existing csv-file, if present
         if data_cfg.to_csv:
-            delete_csv(data_cfg.output_path, data_cfg.overwrite_csv)
-
-    # Check presence of required config values
-    if general_cfg.silent and conn_cfg.pwd is None:
-        print("Silent mode activated, but no password provided.")
-        print("When activating 'silent' mode, "
-            "always provide a GnuCash MariaDB password through cli or 'config.ini'")
-        sys.exit("Exiting script...")
+            data_cfg.to_csv = delete_csv(data_cfg.output_path, data_cfg.overwrite_csv)
 
     gnucash_engine = mdb.create_engine(conn_cfg, gnucash_cfg.database)
     commodities = mdb.get_commodities(gnucash_engine)
@@ -177,26 +184,20 @@ def main() -> None:
                     if_exists = 'append',
                     index = True
                 )
-    # Run 'post processing' stored procedure, if provided
-    if (
-        general_cfg.ppprocedure is not None
-        and execute_ppprocedure is not False
-    ):
-        if general_cfg.ppdb is None:
-            print(
-                f"Post processing database not provided.\n"
-                f"Cannot execute '{general_cfg.ppprocedure}'.")
-            sys.exit("Exiting script...")
-        else:
-            gnu_inv_engine = mdb.create_engine(conn_cfg, general_cfg.ppdb)
-            mdb.execute_procedure(general_cfg.ppprocedure, gnu_inv_engine)
+    # Run 'post processing' stored procedure, if desired
+    if general_cfg.pp:
+        gnu_inv_engine = mdb.create_engine(conn_cfg, general_cfg.ppdb)
+        mdb.execute_procedure(general_cfg.ppprocedure, gnu_inv_engine)
 
-def delete_csv(output_path: str, overwrite_csv: bool) -> None:
+def delete_csv(output_path: str, overwrite_csv: bool) -> bool:
     """Delete pre-existing file @ <output_path>, if present.
 
     Args:
         output_path (str): Output path to store prices in csv
         overwrite_csv (bool): Preference to overwrite csv
+
+    Returns:
+        (Updated) to_csv configuration variable.
 
     """
 
@@ -209,10 +210,14 @@ def delete_csv(output_path: str, overwrite_csv: bool) -> None:
         if overwrite_csv:
             print(f"Deleting {output_path}...")
             os.remove(output_path)
+            to_csv = True
         else:
-            sys.exit("Exiting script...")
+            to_csv = False
     else:
         print(f"{output_path} does not exist / will be created.")
+        to_csv = True
+
+    return to_csv
 
 def get_bool(prompt: str, default: str | bool) -> bool:
     """Helper function to prompt user for confirmation of an action.

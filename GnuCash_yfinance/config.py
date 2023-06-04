@@ -22,6 +22,7 @@ Tip:
 
 """
 
+import sys
 import argparse
 import configparser
 import getpass
@@ -52,6 +53,7 @@ class GeneralConfig:
     silent: bool
     ppprocedure: str
     ppdb: str
+    pp: bool
 
 @dataclass
 class ConnectionConfig:
@@ -166,6 +168,7 @@ def process_config():
         'silent': False,
         'ppprocedure': None,
         'ppdb': None,
+        'pp': False,
         'host': None,
         'port': 3306,
         'user': None,
@@ -192,11 +195,36 @@ def process_config():
     general = GeneralConfig(
         config_cm['silent'],
         config_cm['ppprocedure'],
-        config_cm['ppdb']
+        config_cm['ppdb'],
+        config_cm['pp']
     )
 
-    if general.ppprocedure is not None and general.ppdb is None:
-        raise ConfigError("When using `ppprocedure`, `ppdb` must be provided.")
+    if general.ppprocedure is not None and general.ppdb is not None:
+        general.pp = True
+    elif general.ppprocedure is None and general.ppdb is None:
+        general.pp = False
+
+    if general.silent:
+        if general.ppprocedure is not None and general.ppdb is None:
+            sys.tracebacklimit = 0
+            try:
+                raise ConfigError(
+                    f"{general.ppprocedure} provided for post processing, but no `ppdb`.\n"
+                    f"When using `ppprocedure`, `ppdb` must be provided as well.\n"
+                    f"Exiting script...\n"
+                )
+            except ConfigError:
+                general.pp = False
+        elif general.ppprocedure is None and general.ppdb is not None:
+            sys.tracebacklimit = 0
+            try:
+                raise ConfigError(
+                    f"{general.ppdb} provided for post processing, but no procedure to execute.\n"
+                    f"When using `ppdb`, `ppprocedure` must be provided as well.\n"
+                    f"Skipping post processing."
+                )
+            except:
+                general.pp = False
 
     # MariaDB Server Section
     conn = ConnectionConfig(
@@ -207,7 +235,8 @@ def process_config():
     )
 
     if conn.host is None:
-        raise ConfigError("MariaDB Server host address is mandatory.")
+        sys.tracebacklimit = 0
+        raise ConfigError("MariaDB Server host address is mandatory.\nExiting script...\n")
 
     if conn.user is None:
         # If no username was provided through cli or `config.ini`
@@ -220,8 +249,9 @@ def process_config():
 
     if conn.pwd is None:
         if general.silent:
+            sys.tracebacklimit = 0
             raise ConfigError("When using `silent` mode, "
-                "a password must be provided in `config.ini` or cli.")
+                "a password must be provided in `config.ini` or cli.\nExiting script...\n")
         conn.pwd = get_pwd()
 
     # GnuCash Section
