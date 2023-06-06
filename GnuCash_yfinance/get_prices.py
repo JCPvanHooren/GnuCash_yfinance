@@ -186,7 +186,7 @@ def main() -> None:
                 )
     # Run 'post processing' stored procedure, if desired
     if general_cfg.pp:
-        print_headerline("=", True)
+        helpers.print_headerline("=", True)
         gnu_inv_engine = mdb.create_engine(conn_cfg, general_cfg.ppdb)
         print(f"Executing {general_cfg.ppprocedure} @ {general_cfg.ppdb}... ", end = '')
         mdb.execute_procedure(general_cfg.ppprocedure, gnu_inv_engine)
