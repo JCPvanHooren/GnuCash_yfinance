@@ -105,6 +105,7 @@ def main() -> None:
     general_cfg, conn_cfg, gnucash_cfg, data_cfg, yf_cfg = config.process_config()
 
     if not general_cfg.silent:
+        helpers.print_headerline("-", True)
         # Collect user input
         data_cfg.to_mdb = get_bool(
             f"Load prices to '{gnucash_cfg.database}'?"
@@ -184,13 +185,19 @@ def main() -> None:
                     if_exists = 'append',
                     index = True
                 )
+
     # Run 'post processing' stored procedure, if desired
     if general_cfg.pp:
-        helpers.print_headerline("=", True)
+        helpers.print_headerline("-", True)
+        print()
         gnu_inv_engine = mdb.create_engine(conn_cfg, general_cfg.ppdb)
         print(f"Executing {general_cfg.ppprocedure} @ {general_cfg.ppdb}... ", end = '')
         mdb.execute_procedure(general_cfg.ppprocedure, gnu_inv_engine)
-        print(f"DONE\n")
+        print("DONE\n")
+    
+    helpers.print_headerline("=", True)
+    print("ALL DONE. Script completed...")
+    print()
 
 def delete_csv(output_path: str, overwrite_csv: bool) -> bool:
     """Delete pre-existing file @ <output_path>, if present.

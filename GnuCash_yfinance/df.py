@@ -6,7 +6,6 @@
 """
 
 from datetime import timedelta
-from datetime import date
 import uuid
 
 import pandas
@@ -38,8 +37,8 @@ class CommodityDataFrame:
         self._end_date = data_cfg.end_date
         self._period = data_cfg.period
 
-        self._get_yf()
-        self._set_full()
+        self._yf_df = self._get_yf()
+        self._full_df = self._set_full()
 
     @property
     def yf_df(self) -> pandas.DataFrame:
@@ -71,44 +70,71 @@ class CommodityDataFrame:
             'value_denom'
         ]]
 
-    def _get_yf(self) -> None:
-        """Get DataFrame from Yahoo!Finance for relevant commodity"""
+    def _get_yf(self) -> pandas.DataFrame:
+        """Get DataFrame from Yahoo!Finance for relevant commodity
+
+        Returns:
+            Pandas DataFrame with prices from Yahoo!Finance for the relevant commodity.
+
+        """
+
+        yf_df = pandas.DataFrame()
+        
         if self._commodity.namespace == 'CURRENCY':
             yf_symbol = self._commodity.mnemonic + self._currency + '=X'
         else:
             yf_symbol = self._commodity.mnemonic
 
         if self._start_date:
-            self._yf_df = yfinance.Ticker(yf_symbol).history(
-                start = self._start_date, end = self._end_date)
+            yf_df = yfinance.Ticker(yf_symbol).history(
+                start = self._start_date, end = self._end_date
+            )
+        elif self._period == 'auto':
+            start_date = self._commodity.last_price_date + timedelta(1)
+            try:
+                yf_df = yfinance.Ticker(yf_symbol).history(
+                    start = start_date, end = self._end_date
+                )
+            except IndexError:
+                print("No price data found.")
         else:
-            if self._period == 'auto':
-                start_date = self._commodity.last_price_date + timedelta(1)
-                self._yf_df = yfinance.Ticker(yf_symbol).history(
-                    start = start_date, end = self._end_date)
-            else:
-                self._yf_df = yfinance.Ticker(yf_symbol).history(self._period)
+            yf_df = yfinance.Ticker(yf_symbol).history(self._period)
+        
+        return yf_df
 
-    def _set_full(self) -> None:
-        """Create Full DataFrame by processing and enriching Yahoo!Finance DataFrame"""
-        if (not self.yf_df.empty and self._commodity.mnemonic != self._currency):
-            self._full_df = self.yf_df[['Close']].copy()
-            self._full_df.index = self.full_df.index.tz_localize(None)
-            self._full_df.index.name = 'date'
-            self._full_df['Curr'] = self._currency
-            self._full_df['Symbol'] = self._commodity.mnemonic
-            self._full_df['Full_Name'] = self._commodity.fullname
-            self._full_df['Namespace'] = self._commodity.namespace
+    def _set_full(self) -> pandas.DataFrame:
+        """Create Full DataFrame by processing and enriching Yahoo!Finance DataFrame
+        
+        Returns:
+            Pandas DataFrame with all data for relevant commodity.
+        
+        """
+
+        full_df = pandas.DataFrame()
+        
+        if (
+            not self.yf_df.empty
+            and self._commodity.mnemonic != self._currency
+        ):
+            full_df = pandas.DataFrame()
+            full_df = self.yf_df[['Close']].copy()
+            print(full_df)
+            full_df.index = full_df.index.tz_localize(None)
+            full_df.index.name = 'date'
+            full_df['Curr'] = self._currency
+            full_df['Symbol'] = self._commodity.mnemonic
+            full_df['Full_Name'] = self._commodity.fullname
+            full_df['Namespace'] = self._commodity.namespace
             if self._commodity.namespace == 'CURRENCY':
-                self._full_df['Close'] = self.full_df['Close'].round(decimals = 5)
+                full_df['Close'] = full_df['Close'].round(decimals = 5)
             else:
-                self._full_df['Close'] = self.full_df['Close'].round(decimals = 2)
-            self._full_df['guid'] = [uuid.uuid4().hex for _ in range(len(self.full_df.index))]
-            self._full_df['commodity_guid'] = self._commodity.guid
-            self._full_df['currency_guid'] = self._commodity.currency_guid
-            self._full_df['source'] = 'user:price'
-            self._full_df['type'] = 'last'
-            self._full_df['value_num'] = self.full_df['Close'] * self._commodity.value_denom
-            self._full_df['value_denom'] = self._commodity.value_denom
-        else:
-            self._full_df = pandas.DataFrame()
+                full_df['Close'] = full_df['Close'].round(decimals = 2)
+            full_df['guid'] = [uuid.uuid4().hex for _ in range(len(full_df.index))]
+            full_df['commodity_guid'] = self._commodity.guid
+            full_df['currency_guid'] = self._commodity.currency_guid
+            full_df['source'] = 'user:price'
+            full_df['type'] = 'last'
+            full_df['value_num'] = full_df['Close'] * self._commodity.value_denom
+            full_df['value_denom'] = self._commodity.value_denom
+        
+        return full_df

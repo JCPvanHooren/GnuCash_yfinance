@@ -245,6 +245,7 @@ def process_config():
             conn.user = default_user
         else:
             # ELSE, get username from user
+            helpers.print_headerline("-", True)
             conn.user = get_username(conn, default_user)
 
     if conn.pwd is None:
@@ -451,7 +452,7 @@ def get_username(connection_cfg: ConnectionConfig, default_user: str) -> str:
     """
 
     print(
-        f"\nEnter a username and password to connect to: "
+        f"Enter a username and password to connect to: "
         f"MariaDB://{connection_cfg.host}:{connection_cfg.port}"
     )
     return input(
