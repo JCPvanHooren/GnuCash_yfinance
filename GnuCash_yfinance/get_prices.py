@@ -120,7 +120,7 @@ def main() -> None:
         )
 
         if general_cfg.ppprocedure is not None and general_cfg.ppdb is not None:
-            general_cfg.pp = get_bool(
+            general_cfg.do_pp = get_bool(
                 f"Execute stored procedure '{general_cfg.ppprocedure}' @ '{general_cfg.ppdb}'?"
                 f" ['Enter' = {data_cfg.to_mdb}] ",
                 data_cfg.to_mdb
@@ -131,14 +131,14 @@ def main() -> None:
                 f"but no [required] `ppdb`.\n"
                 f"Skipping post processing..."
             )
-            general_cfg.pp = False
+            general_cfg.do_pp = False
         elif general_cfg.ppprocedure is None and general_cfg.ppdb is not None:
             print(
                 f"You've provided {general_cfg.ppdb} for post processing, "
                 f"but no [required] `ppprocedure`.\n"
                 f"Skipping post processing..."
             )
-            general_cfg.pp = False
+            general_cfg.do_pp = False
 
         # If user chose to write prices to csv, delete pre-existing csv-file, if present
         if data_cfg.to_csv:
@@ -187,7 +187,7 @@ def main() -> None:
                 )
 
     # Run 'post processing' stored procedure, if desired
-    if general_cfg.pp:
+    if general_cfg.do_pp:
         helpers.print_headerline("-", True)
         print()
         gnu_inv_engine = mdb.create_engine(conn_cfg, general_cfg.ppdb)

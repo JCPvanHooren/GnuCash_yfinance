@@ -47,21 +47,23 @@ class GeneralConfig:
         ppdb (str):
             Database in which the ppprocedure is stored.
             Required when using `ppprocedure`.
+        do_pp (bool):
+            Execute post processing.
 
     """
 
     silent: bool
     ppprocedure: str
     ppdb: str
-    pp: bool
-    
+    do_pp: bool
+
     def __post_init__(self):
         """Validate and enricht configuration."""
-        
+
         if self.ppprocedure is not None and self.ppdb is not None:
-            self.pp = True
+            self.do_pp = True
         elif self.ppprocedure is None and self.ppdb is None:
-            self.pp = False
+            self.do_pp = False
 
         if self.silent:
             if self.ppprocedure is not None and self.ppdb is None:
@@ -73,7 +75,7 @@ class GeneralConfig:
                         f"Exiting script...\n"
                     )
                 except ConfigError:
-                    self.pp = False
+                    self.do_pp = False
             elif self.ppprocedure is None and self.ppdb is not None:
                 sys.tracebacklimit = 0
                 try:
@@ -83,7 +85,7 @@ class GeneralConfig:
                         f"Skipping post processing."
                     )
                 except ConfigError:
-                    self.pp = False
+                    self.do_pp = False
 
 @dataclass
 class ConnectionConfig:
@@ -110,10 +112,10 @@ class ConnectionConfig:
     user: str
     pwd: str
     silent: InitVar[bool]
-    
+
     def __post_init__(self, silent):
         """Validate and enricht configuration."""
-        
+
         if self.host is None:
             sys.tracebacklimit = 0
             raise ConfigError("MariaDB Server host address is mandatory.\nExiting script...\n")
@@ -222,7 +224,7 @@ def process_config():
         'silent': False,
         'ppprocedure': None,
         'ppdb': None,
-        'pp': False,
+        'do_pp': False,
         'host': None,
         'port': 3306,
         'user': None,
@@ -251,7 +253,7 @@ def process_config():
         config_cm['silent'],
         config_cm['ppprocedure'],
         config_cm['ppdb'],
-        config_cm['pp']
+        config_cm['do_pp']
     )
 
     # MariaDB Server Section
