@@ -154,7 +154,7 @@ def process_config():
     """Main function to process configuration variables.
 
     Returns:
-        An 'CustomConfig' `dataclass` object,
+        A 'CustomConfig' `dataclass` object,
         containing a set of configuration variables
 
     """
@@ -223,7 +223,7 @@ def process_config():
                     f"When using `ppdb`, `ppprocedure` must be provided as well.\n"
                     f"Skipping post processing."
                 )
-            except:
+            except ConfigError:
                 general.pp = False
 
     # MariaDB Server Section

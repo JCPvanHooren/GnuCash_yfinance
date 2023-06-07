@@ -194,7 +194,7 @@ def main() -> None:
         print(f"Executing {general_cfg.ppprocedure} @ {general_cfg.ppdb}... ", end = '')
         mdb.execute_procedure(general_cfg.ppprocedure, gnu_inv_engine)
         print("DONE\n")
-    
+
     helpers.print_headerline("=", True)
     print("ALL DONE. Script completed...")
     print()
