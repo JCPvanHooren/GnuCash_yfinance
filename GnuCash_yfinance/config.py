@@ -28,7 +28,7 @@ import configparser
 import getpass
 from collections import ChainMap
 from datetime import date
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, InitVar
 
 import helpers
 
@@ -54,6 +54,36 @@ class GeneralConfig:
     ppprocedure: str
     ppdb: str
     pp: bool
+    
+    def __post_init__(self):
+        """Validate and enricht configuration."""
+        
+        if self.ppprocedure is not None and self.ppdb is not None:
+            self.pp = True
+        elif self.ppprocedure is None and self.ppdb is None:
+            self.pp = False
+
+        if self.silent:
+            if self.ppprocedure is not None and self.ppdb is None:
+                sys.tracebacklimit = 0
+                try:
+                    raise ConfigError(
+                        f"{self.ppprocedure} provided for post processing, but no `ppdb`.\n"
+                        f"When using `ppprocedure`, `ppdb` must be provided as well.\n"
+                        f"Exiting script...\n"
+                    )
+                except ConfigError:
+                    self.pp = False
+            elif self.ppprocedure is None and self.ppdb is not None:
+                sys.tracebacklimit = 0
+                try:
+                    raise ConfigError(
+                        f"{self.ppdb} provided for post processing, but no procedure to execute.\n"
+                        f"When using `ppdb`, `ppprocedure` must be provided as well.\n"
+                        f"Skipping post processing."
+                    )
+                except ConfigError:
+                    self.pp = False
 
 @dataclass
 class ConnectionConfig:
@@ -79,6 +109,32 @@ class ConnectionConfig:
     port: int
     user: str
     pwd: str
+    silent: InitVar[bool]
+    
+    def __post_init__(self, silent):
+        """Validate and enricht configuration."""
+        
+        if self.host is None:
+            sys.tracebacklimit = 0
+            raise ConfigError("MariaDB Server host address is mandatory.\nExiting script...\n")
+
+        if self.user is None:
+            # If no username was provided through cli or `config.ini`
+            default_user = getpass.getuser().title()
+            if silent:
+                # AND IF `--silent` mode is active, use current system username
+                self.user = default_user
+            else:
+                # ELSE, get username from user
+                helpers.print_headerline("-", True)
+                self.user = get_username(self, default_user)
+
+        if self.pwd is None:
+            if silent:
+                sys.tracebacklimit = 0
+                raise ConfigError("When using `silent` mode, "
+                    "a password must be provided in `config.ini` or cli.\nExiting script...\n")
+            self.pwd = get_pwd()
 
 @dataclass
 class GnuCashConfig:
@@ -159,8 +215,6 @@ def process_config():
 
     """
 
-    default_user = getpass.getuser().title()
-
     cli_args = parse_args()
     config_ini = parse_config(cli_args['config'])
     # Set config_defaults as ultimate fallback
@@ -191,6 +245,7 @@ def process_config():
     config_cm = ChainMap(cli_args, config_ini, config_defaults)
 
     # Initialize config objects per section from defaults ChainMap,
+
     # General Section
     general = GeneralConfig(
         config_cm['silent'],
@@ -199,61 +254,14 @@ def process_config():
         config_cm['pp']
     )
 
-    if general.ppprocedure is not None and general.ppdb is not None:
-        general.pp = True
-    elif general.ppprocedure is None and general.ppdb is None:
-        general.pp = False
-
-    if general.silent:
-        if general.ppprocedure is not None and general.ppdb is None:
-            sys.tracebacklimit = 0
-            try:
-                raise ConfigError(
-                    f"{general.ppprocedure} provided for post processing, but no `ppdb`.\n"
-                    f"When using `ppprocedure`, `ppdb` must be provided as well.\n"
-                    f"Exiting script...\n"
-                )
-            except ConfigError:
-                general.pp = False
-        elif general.ppprocedure is None and general.ppdb is not None:
-            sys.tracebacklimit = 0
-            try:
-                raise ConfigError(
-                    f"{general.ppdb} provided for post processing, but no procedure to execute.\n"
-                    f"When using `ppdb`, `ppprocedure` must be provided as well.\n"
-                    f"Skipping post processing."
-                )
-            except ConfigError:
-                general.pp = False
-
     # MariaDB Server Section
     conn = ConnectionConfig(
         config_cm['host'],
         config_cm['port'],
         config_cm['user'],
-        config_cm['pwd']
+        config_cm['pwd'],
+        general.silent
     )
-
-    if conn.host is None:
-        sys.tracebacklimit = 0
-        raise ConfigError("MariaDB Server host address is mandatory.\nExiting script...\n")
-
-    if conn.user is None:
-        # If no username was provided through cli or `config.ini`
-        if general.silent:
-            # AND IF `--silent` mode is active, use current system username
-            conn.user = default_user
-        else:
-            # ELSE, get username from user
-            helpers.print_headerline("-", True)
-            conn.user = get_username(conn, default_user)
-
-    if conn.pwd is None:
-        if general.silent:
-            sys.tracebacklimit = 0
-            raise ConfigError("When using `silent` mode, "
-                "a password must be provided in `config.ini` or cli.\nExiting script...\n")
-        conn.pwd = get_pwd()
 
     # GnuCash Section
     gnucash = GnuCashConfig(
