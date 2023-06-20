@@ -118,7 +118,6 @@ class CommodityDataFrame:
         ):
             full_df = pandas.DataFrame()
             full_df = self.yf_df[['Close']].copy()
-            print(full_df)
             full_df.index = full_df.index.tz_localize(None)
             full_df.index.name = 'date'
             full_df['Curr'] = self._currency

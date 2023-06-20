@@ -104,46 +104,6 @@ def main() -> None:
 
     general_cfg, conn_cfg, gnucash_cfg, data_cfg, yf_cfg = config.process_config()
 
-    if not general_cfg.silent:
-        helpers.print_headerline("-", True)
-        # Collect user input
-        data_cfg.to_mdb = get_bool(
-            f"Load prices to '{gnucash_cfg.database}'?"
-            f" ['Enter' = {data_cfg.to_mdb}] ",
-            data_cfg.to_mdb if isinstance(data_cfg.to_mdb, bool) else 'force'
-        )
-
-        data_cfg.to_csv = get_bool(
-            f"Save prices to: {data_cfg.output_path}?"
-            f" ['Enter' = {data_cfg.to_csv}] ",
-            data_cfg.to_csv if isinstance(data_cfg.to_csv, bool) else 'force'
-        )
-
-        if general_cfg.ppprocedure is not None and general_cfg.ppdb is not None:
-            general_cfg.do_pp = get_bool(
-                f"Execute stored procedure '{general_cfg.ppprocedure}' @ '{general_cfg.ppdb}'?"
-                f" ['Enter' = {data_cfg.to_mdb}] ",
-                data_cfg.to_mdb
-            )
-        elif general_cfg.ppprocedure is not None and general_cfg.ppdb is None:
-            print(
-                f"You've provided {general_cfg.ppprocedure} for post processing, "
-                f"but no [required] `ppdb`.\n"
-                f"Skipping post processing..."
-            )
-            general_cfg.do_pp = False
-        elif general_cfg.ppprocedure is None and general_cfg.ppdb is not None:
-            print(
-                f"You've provided {general_cfg.ppdb} for post processing, "
-                f"but no [required] `ppprocedure`.\n"
-                f"Skipping post processing..."
-            )
-            general_cfg.do_pp = False
-
-        # If user chose to write prices to csv, delete pre-existing csv-file, if present
-        if data_cfg.to_csv:
-            data_cfg.to_csv = delete_csv(data_cfg.output_path, data_cfg.overwrite_csv)
-
     gnucash_engine = mdb.create_engine(conn_cfg, gnucash_cfg.database)
     commodities = mdb.get_commodities(gnucash_engine)
 
@@ -198,78 +158,6 @@ def main() -> None:
     helpers.print_headerline("=", True)
     print("ALL DONE. Script completed...")
     print()
-
-def delete_csv(output_path: str, overwrite_csv: bool) -> bool:
-    """Delete pre-existing file @ <output_path>, if present.
-
-    Args:
-        output_path (str): Output path to store prices in csv
-        overwrite_csv (bool): Preference to overwrite csv
-
-    Returns:
-        (Updated) to_csv configuration variable.
-
-    """
-
-    if os.path.exists(output_path):
-        overwrite_csv = get_bool(
-            f"{output_path} already exists."
-            f" Do you want to overwrite? ['Enter' = {overwrite_csv}] ",
-            overwrite_csv if isinstance(overwrite_csv, bool) else 'force'
-        )
-        if overwrite_csv:
-            print(f"Deleting {output_path}...")
-            os.remove(output_path)
-            to_csv = True
-        else:
-            to_csv = False
-    else:
-        print(f"{output_path} does not exist / will be created.")
-        to_csv = True
-
-    return to_csv
-
-def get_bool(prompt: str, default: str | bool) -> bool:
-    """Helper function to prompt user for confirmation of an action.
-
-    Args:
-        prompt: The action to be confirmed by the user.
-        default: default return value, if no input is given by the user \
-        (i.e. user hits 'Enter' upon prompt).
-
-    Returns:
-        True if action is to be executed by the script.
-        False if action should not be executed by the script.
-
-    """
-
-    valid_defaults = ('force', True, False)
-    if default not in valid_defaults:
-        raise ValueError(f"Prompt default must be one of {valid_defaults}.")
-
-    while True:
-        valid_responses = {}
-
-        valid_pos_resp = ['y', 'yes', 't', 'true']
-        for i in valid_pos_resp:
-            valid_responses.update({i:True})
-
-        valid_neg_resp = ['n', 'no', 'f', 'false']
-        for i in valid_neg_resp:
-            valid_responses.update({i:False})
-
-        try:
-            if isinstance(default, bool):
-                # Add `default` to `valid_responses`,
-                # so user can hit 'Enter'/provide empty response to return `default`
-                valid_responses[""] = default
-            # If `default` = 'force', "" will not be added to `valid_responses`
-            # therefor the try will fail without an input != ""
-            response = valid_responses[input(prompt).lower()]
-            print(f"-> {response}")
-            return response
-        except KeyError:
-            print(f"Invalid input. Please enter: {valid_pos_resp} OR {valid_neg_resp}")
 
 if __name__ == '__main__':
     main()
