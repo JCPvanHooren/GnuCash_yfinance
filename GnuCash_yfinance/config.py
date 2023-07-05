@@ -23,6 +23,7 @@ Tip:
 """
 
 import sys
+import os
 import argparse
 import configparser
 import getpass
